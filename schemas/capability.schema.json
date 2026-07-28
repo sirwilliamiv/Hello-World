@@ -1,0 +1,788 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge.originplatformlabs.com/schemas/capability.schema.json",
+  "title": "Forge Capability Specification",
+  "description": "The machine-readable specification for one capability. Every relationship a capability has with any other capability MUST be declared here. The dependency graph, plan output, contract tests, integration weight, and client documentation are all derived from this file rather than maintained separately. Nothing undeclared may be used at runtime; see the static-analysis rules in ARCHITECTURE.md section 9.3.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec_version",
+    "id",
+    "version",
+    "kernel_range",
+    "name",
+    "tier",
+    "price",
+    "integration_weight"
+  ],
+
+  "properties": {
+    "spec_version": {
+      "description": "Version of this specification format. Lets the engine migrate old capability files.",
+      "type": "integer",
+      "const": 1
+    },
+
+    "id": {
+      "$ref": "#/$defs/capabilityId",
+      "description": "Stable, namespaced identifier. Never changes once published; a rename is a new capability plus a deprecation."
+    },
+
+    "version": {
+      "$ref": "#/$defs/semver",
+      "description": "Semantic version of this capability package. Patch: internal fix only. Minor: additive only. Major: breaking change to owned schema, exposed interfaces, or published payloads, and MUST ship a migration with a rollback."
+    },
+
+    "kernel_range": {
+      "$ref": "#/$defs/semverRange",
+      "description": "Compatible kernel versions. Resolution intersects this across every capability in the graph; an empty intersection is a validation error naming the two capabilities that disagree."
+    },
+
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human label used in proposals, plan output, and client documentation."
+    },
+
+    "trigger": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The buyer-facing sentence describing when this is needed. Required for tier 'capability' and 'upgrade'; kernel capabilities are never sold separately and omit it."
+    },
+
+    "summary": {
+      "type": "string",
+      "description": "One paragraph of prose for `forge catalog show`. Not used by the engine."
+    },
+
+    "tier": {
+      "enum": ["kernel", "capability", "upgrade"],
+      "description": "kernel: always present, never in a manifest, may define shared primitives. capability: selectable. upgrade: selectable, replaces a kernel primitive or lower capability and cannot stack with it."
+    },
+
+    "price": { "$ref": "#/$defs/price" },
+
+    "integration_weight": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Base contribution to the systems integration premium. The total premium also counts realised event pairs, enhances relationships, and mandatory contract tests; see ARCHITECTURE.md section 3."
+    },
+
+    "requires": {
+      "type": "array",
+      "description": "Hard dependencies. Apply fails without them. Pulled into the graph automatically, and the plan shows the addition and its price so nothing is a commercial surprise.",
+      "items": { "$ref": "#/$defs/hardDependency" },
+      "default": []
+    },
+
+    "enhances": {
+      "type": "array",
+      "description": "Optional relationships that unlock behavior when both capabilities are present. Never pulls anything into the graph. Each realised enhancement adds to integration weight and should be surfaced in the plan and the proposal.",
+      "items": { "$ref": "#/$defs/enhancement" },
+      "default": []
+    },
+
+    "conflicts": {
+      "type": "array",
+      "description": "Capabilities that cannot coexist. Fails loudly at validate, never at apply.",
+      "items": { "$ref": "#/$defs/conflict" },
+      "default": []
+    },
+
+    "upgrades": {
+      "description": "The kernel primitive or capability this replaces. Required when tier is 'upgrade' and forbidden otherwise. The upgrader must satisfy the full exposed interface of the upgraded capability; validation compares the two `exposes` blocks. Two capabilities occupying the same upgrade slot is a validation error.",
+      "$ref": "#/$defs/upgradeTarget"
+    },
+
+    "owns": {
+      "type": "array",
+      "description": "Entities this capability defines and is the SOLE writer for. No other capability may write these, and only the kernel may own shared primitives (User, Organization, Money, AuditEntry, Event).",
+      "items": { "$ref": "#/$defs/ownedEntity" },
+      "default": []
+    },
+
+    "extends": {
+      "type": "array",
+      "description": "Fields added to entities owned elsewhere. The owner remains the sole writer of its own fields; the extender writes only the fields it declares here.",
+      "items": { "$ref": "#/$defs/entityExtension" },
+      "default": []
+    },
+
+    "publishes": {
+      "type": "array",
+      "description": "Events emitted onto the kernel bus, each with its own contract version and payload schema. An event whose schema is not registered here fails CI.",
+      "items": { "$ref": "#/$defs/publishedEvent" },
+      "default": []
+    },
+
+    "consumes": {
+      "type": "array",
+      "description": "Events subscribed to, with the contract versions handled. A publisher emitting a version no consumer in the resolved graph supports is a validation error, not a runtime surprise.",
+      "items": { "$ref": "#/$defs/consumedEvent" },
+      "default": []
+    },
+
+    "exposes": {
+      "type": "array",
+      "description": "Interfaces, API routes, UI surfaces, and registries made available to other capabilities. A capability may only call what another capability exposes here.",
+      "items": { "$ref": "#/$defs/exposedItem" },
+      "default": []
+    },
+
+    "registers": {
+      "type": "array",
+      "description": "Entries contributed to a registry exposed by another capability: permissions to kernel.access, relation schemas to access.rebac, metric definitions to ops.reporting, actions to automation.rules, tools to ai.agents, nav items to kernel.ui. The target registry must be declared in that capability's `exposes`, and the target must be in `requires` or `enhances`. This is what lets the rule builder's action list and the agent's tool list be derived from the resolved graph rather than hardcoded per client.",
+      "items": { "$ref": "#/$defs/registration" },
+      "default": []
+    },
+
+    "external": {
+      "type": "array",
+      "description": "Third-party services and the credentials they need. Credentials are referenced by name only; values never appear in a capability spec, a manifest, or state.",
+      "items": { "$ref": "#/$defs/externalService" },
+      "default": []
+    },
+
+    "config": {
+      "type": "object",
+      "description": "Typed configuration schema with defaults, expressed as a JSON Schema object. Validated against the manifest's per-capability config block at validate time.",
+      "properties": {
+        "type": { "const": "object" },
+        "properties": { "type": "object" },
+        "required": { "type": "array", "items": { "type": "string" } },
+        "additionalProperties": { "type": "boolean" }
+      },
+      "default": { "type": "object", "properties": {}, "additionalProperties": false }
+    },
+
+    "slots": {
+      "type": "array",
+      "description": "Named extension points where client-specific logic may be inserted. Slots are the sanctioned alternative to editing generated code; inadequate slot coverage is the mechanism by which a fleet fragments.",
+      "items": { "$ref": "#/$defs/slot" },
+      "default": []
+    },
+
+    "surfaces": {
+      "type": "array",
+      "description": "Where this capability appears in the application and admin interfaces. Capabilities never ship their own styles; they register surfaces into the kernel.ui shell and consume its tokens.",
+      "items": { "$ref": "#/$defs/surface" },
+      "default": []
+    },
+
+    "tests": {
+      "type": "object",
+      "description": "Smoke tests generated into the client repository, and contract tests proving each declared relationship. Every declared pair gets a contract test.",
+      "additionalProperties": false,
+      "properties": {
+        "smoke": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/smokeTest" },
+          "default": []
+        },
+        "contract": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/contractTest" },
+          "default": []
+        }
+      },
+      "default": { "smoke": [], "contract": [] }
+    },
+
+    "migrations": {
+      "type": "array",
+      "description": "Forward and rollback scripts. A major version bump without a migration fails publication. A migration without a rollback fails publication.",
+      "items": { "$ref": "#/$defs/migration" },
+      "default": []
+    },
+
+    "templates": {
+      "type": "array",
+      "description": "The generated half of the capability: the minimum wiring that cannot live inside the npm package. Kept deliberately small — every generated line is a line that may be hand-edited and must later be three-way merged. See the generation budget in ARCHITECTURE.md section 4.",
+      "items": { "$ref": "#/$defs/template" },
+      "default": []
+    },
+
+    "package": {
+      "type": "object",
+      "description": "The runtime half: the npm package imported by the client application. Never copied into a client repository.",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^@forge/[a-z0-9-]+$",
+          "description": "npm package name, e.g. '@forge/pay-card'."
+        },
+        "peer_requirements": {
+          "type": "object",
+          "description": "Third-party peer dependencies with version ranges, e.g. { \"stripe\": \"^18.0.0\" }.",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+
+    "generation_budget_waiver": {
+      "type": "object",
+      "description": "Explicit, reviewed exception to the per-capability generated-line budget. Requires a reason; its presence is surfaced in `forge catalog show`.",
+      "additionalProperties": false,
+      "required": ["lines", "reason"],
+      "properties": {
+        "lines": { "type": "integer", "minimum": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "deprecated": {
+      "type": "object",
+      "description": "Marks this capability as deprecated. Validation warns when it is selected and names the replacement.",
+      "additionalProperties": false,
+      "required": ["since", "reason"],
+      "properties": {
+        "since": { "$ref": "#/$defs/semver" },
+        "reason": { "type": "string" },
+        "replaced_by": { "$ref": "#/$defs/capabilityId" }
+      }
+    }
+  },
+
+  "allOf": [
+    {
+      "$comment": "A sellable capability must carry a buyer-facing trigger sentence; the kernel is never sold separately.",
+      "if": { "properties": { "tier": { "enum": ["capability", "upgrade"] } }, "required": ["tier"] },
+      "then": { "required": ["trigger"] }
+    },
+    {
+      "$comment": "tier 'upgrade' requires a declared upgrade target; nothing else may declare one.",
+      "if": { "properties": { "tier": { "const": "upgrade" } }, "required": ["tier"] },
+      "then": { "required": ["upgrades"] },
+      "else": { "not": { "required": ["upgrades"] } }
+    },
+    {
+      "$comment": "Kernel capabilities are included in every product and are never separately priced.",
+      "if": { "properties": { "tier": { "const": "kernel" } }, "required": ["tier"] },
+      "then": { "properties": { "price": { "properties": { "model": { "const": "included" } } } } }
+    }
+  ],
+
+  "$defs": {
+    "capabilityId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*$",
+      "examples": ["kernel.data", "pay.card", "access.rebac", "integrate.publicapi"]
+    },
+
+    "capabilitySelector": {
+      "description": "A relationship target. Either a concrete capability id, a namespace glob, or one of a closed set of selectors evaluated against the resolved graph. Selectors are how the catalog's 'every capability that owns personal data' relationships become machine-readable rather than prose.",
+      "oneOf": [
+        { "$ref": "#/$defs/capabilityId" },
+        { "type": "string", "pattern": "^[a-z][a-z0-9]*\\.\\*$", "examples": ["pay.*"] },
+        {
+          "enum": [
+            "all",
+            "owns_data",
+            "owns_personal_data",
+            "owns_listable_data",
+            "owns_tenant_scoped_data",
+            "has_protected_resources",
+            "performs_async_work",
+            "notifies_humans",
+            "publishes_events"
+          ]
+        }
+      ]
+    },
+
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-[0-9A-Za-z-.]+)?$"
+    },
+
+    "semverRange": {
+      "type": "string",
+      "minLength": 1,
+      "description": "npm-style range, e.g. '^1.2.0', '>=1.0.0 <3.0.0'.",
+      "examples": ["^1.0.0", ">=1.4.0 <2.0.0"]
+    },
+
+    "price": {
+      "type": "object",
+      "description": "List price, so the manifest can produce a quote. Integer minor units only — floating point currency anywhere in this system is a defect.",
+      "additionalProperties": false,
+      "required": ["model"],
+      "properties": {
+        "model": {
+          "enum": ["included", "fixed", "quoted"],
+          "description": "included: part of the kernel, never billed separately. fixed: a list price. quoted: priced per engagement, e.g. integrate.custom."
+        },
+        "amount_minor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Price in minor units of `currency`. Required when model is 'fixed'."
+        },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "USD" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "model": { "const": "fixed" } }, "required": ["model"] },
+          "then": { "required": ["amount_minor"] }
+        }
+      ]
+    },
+
+    "hardDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "range"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capabilityId" },
+        "range": { "$ref": "#/$defs/semverRange" },
+        "reason": {
+          "type": "string",
+          "description": "Why this is hard rather than optional. Shown in plan output when the dependency is auto-added, so the addition is never a surprise."
+        }
+      }
+    },
+
+    "enhancement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "unlocks"],
+      "properties": {
+        "target": { "$ref": "#/$defs/capabilitySelector" },
+        "range": { "$ref": "#/$defs/semverRange" },
+        "unlocks": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What behavior becomes available when both are present, e.g. 'per-seat billing'. Surfaced in the plan and in proposals."
+        }
+      }
+    },
+
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reason"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capabilityId" },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required. A conflict without an explanation is unactionable when a validate run surfaces it."
+        }
+      }
+    },
+
+    "upgradeTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "migration"],
+      "properties": {
+        "id": { "$ref": "#/$defs/capabilityId" },
+        "migration": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Id of the migration that moves an existing product from the upgraded capability to this one. An upgrade without a migration path cannot be applied to a live client."
+        },
+        "interface_exceptions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Exposed interfaces of the upgraded capability that this deliberately does NOT satisfy. Each entry is a documented breaking change requiring review; an empty list is the expected case.",
+          "default": []
+        }
+      }
+    },
+
+    "ownedEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9]*$",
+          "description": "PascalCase entity name, unique across the entire resolved graph."
+        },
+        "kind": {
+          "enum": ["table", "value_type", "registry"],
+          "description": "table: a persisted entity, gets kernel.data lifecycle events and a kernel.admin surface. value_type: an in-memory type such as Money. registry: an in-process registry such as the kernel.ui navigation registry."
+        },
+        "description": { "type": "string" },
+        "personal_data": {
+          "type": "boolean",
+          "default": false,
+          "description": "Contains data about an identifiable person. When data.privacy is enabled, an entity with this flag MUST declare privacy handlers or validation fails."
+        },
+        "tenant_scoped": {
+          "type": "boolean",
+          "default": true,
+          "description": "Gets an organization reference when org.teams is present. Set false for genuinely global entities such as Currency."
+        },
+        "listable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Appears in list views and is a candidate for data.search indexing."
+        },
+        "append_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Rows may never be updated or deleted; corrections are new rows. Enforced at the repository layer. Required for ledger entries and audit records."
+        },
+        "privacy": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Export and deletion handlers. Required when personal_data is true and data.privacy is enabled.",
+          "properties": {
+            "export_handler": { "type": "string" },
+            "deletion_strategy": {
+              "enum": ["delete", "anonymize", "retain_under_legal_basis"],
+              "description": "anonymize is required for financial records exempt from deletion, so the ledger stays intact."
+            },
+            "deletion_handler": { "type": "string" },
+            "retention_note": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "entityExtension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "fields", "reason"],
+      "properties": {
+        "target": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*:[A-Z][A-Za-z0-9]*$",
+              "description": "Owner-qualified entity, e.g. 'pay.invoices:Invoice'.",
+              "examples": ["pay.invoices:Invoice"]
+            },
+            { "$ref": "#/$defs/capabilitySelector" }
+          ],
+          "description": "A specific owned entity, or a selector such as 'owns_tenant_scoped_data' for the org.teams case where every tenant-scoped entity gains an organization reference."
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type"],
+            "properties": {
+              "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_]*$" },
+              "type": { "type": "string", "description": "TypeScript type or entity reference." },
+              "nullable": { "type": "boolean", "default": true },
+              "indexed": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "eventName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z0-9_*]+)+$",
+      "examples": ["payment.succeeded", "entity.created", "org.member.added"]
+    },
+
+    "eventPattern": {
+      "type": "string",
+      "pattern": "^([a-z][a-z0-9_]*(\\.[a-z0-9_*]+)*|\\*\\*)$",
+      "description": "An event name, a glob such as 'entity.*', or '**' for every event in the system (audit.history, automation.rules, integrate.webhooks).",
+      "examples": ["identity.user.deleted", "entity.*", "**"]
+    },
+
+    "publishedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "contract_version", "payload"],
+      "properties": {
+        "name": { "$ref": "#/$defs/eventName" },
+        "contract_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Versioned independently of the capability, because the two change at different rates."
+        },
+        "payload": {
+          "type": "object",
+          "description": "JSON Schema for the payload. Compiled to a TypeScript type and registered in the kernel.events schema registry."
+        },
+        "description": { "type": "string" },
+        "per_entity": {
+          "type": "boolean",
+          "default": false,
+          "description": "Emitted once per registered entity rather than once globally, e.g. kernel.data's entity.created.",
+          "$comment": "The engine expands these against the resolved entity set when computing publisher/consumer satisfaction."
+        },
+        "deprecates": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "A prior contract version this replaces. The deprecated version continues to be emitted alongside this one for one full major cycle, then is removed."
+        }
+      }
+    },
+
+    "consumedEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "contract_versions", "required", "reason"],
+      "properties": {
+        "name": { "$ref": "#/$defs/eventPattern" },
+        "contract_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 1 },
+          "description": "Every contract version this handles. Validation fails if a publisher in the graph emits a version absent from this list."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "true: a publisher must exist in the resolved graph or validation fails. false: the subscription is inert when no publisher is present."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What this capability does on receipt, e.g. 'detach stored payment methods'. Drives the generated contract test name and the catalog documentation."
+        },
+        "handler": { "type": "string", "description": "Exported handler name in the npm package." }
+      }
+    },
+
+    "exposedItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": {
+          "enum": ["interface", "route", "ui_surface", "component", "registry", "webhook_receiver"],
+          "description": "interface: a callable function. route: an HTTP endpoint. ui_surface / component: React. registry: an extension point other capabilities contribute to via `registers`. webhook_receiver: an inbound endpoint for an external service."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "signature": {
+          "type": "string",
+          "description": "TypeScript signature. Compared between an upgrader and the capability it upgrades to prove interface satisfaction.",
+          "examples": ["charge(amount: Money, customer: CustomerRef): Promise<Charge>"]
+        },
+        "path": { "type": "string", "description": "For kind 'route' or 'webhook_receiver'.", "examples": ["/api/payments/*"] },
+        "stability": { "enum": ["stable", "experimental", "deprecated"], "default": "stable" },
+        "agent_callable": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether ai.agents may invoke this as a tool. Tools available to an agent are derived from the resolved graph rather than configured per client."
+        },
+        "consequence": {
+          "enum": ["read", "write", "moves_money", "external_communication", "destructive"],
+          "description": "Required when agent_callable is true. Anything moving money, sending external communication, or deleting data requires approval regardless of trust level."
+        },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "agent_callable": { "const": true } }, "required": ["agent_callable"] },
+          "then": { "required": ["consequence"] }
+        },
+        {
+          "if": { "properties": { "kind": { "enum": ["route", "webhook_receiver"] } }, "required": ["kind"] },
+          "then": { "required": ["path"] }
+        }
+      ]
+    },
+
+    "registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "entries"],
+      "properties": {
+        "registry": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*:[a-zA-Z][a-zA-Z0-9_]*$",
+          "description": "Owner-qualified registry name. Must match an `exposes` entry of kind 'registry' on a capability listed in this capability's `requires` or `enhances`.",
+          "examples": ["kernel.access:permissions", "ops.reporting:metrics", "automation.rules:actions"]
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "object" },
+          "description": "Registry-specific entries, validated against the schema the registry owner declares."
+        },
+        "when_present": {
+          "type": "boolean",
+          "default": true,
+          "description": "true: contributed only when the registry owner is in the resolved graph. Set false only for registries owned by hard dependencies."
+        }
+      }
+    },
+
+    "externalService": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["service", "purpose", "credentials"],
+      "properties": {
+        "service": { "type": "string", "minLength": 1, "examples": ["Stripe", "QuickBooks Online"] },
+        "purpose": { "type": "string", "minLength": 1 },
+        "optional": { "type": "boolean", "default": false },
+        "via": {
+          "$ref": "#/$defs/capabilityId",
+          "description": "When present, credentials are held by that capability rather than directly. Every OAuth integration goes through integrate.connections; every model provider goes through ai.gateway. Direct provider calls bypassing these are a CI failure."
+        },
+        "credentials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*$",
+                "description": "Environment variable name. The manifest binds this to a secret_ref; the VALUE never appears in a spec, a manifest, or state."
+              },
+              "description": { "type": "string" },
+              "scope": { "enum": ["product", "environment", "tenant"], "default": "environment" },
+              "optional": { "type": "boolean", "default": false }
+            }
+          }
+        }
+      }
+    },
+
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "signature", "description"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$" },
+        "signature": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The exported TypeScript type the stub implements. Lives in the npm package, so a major version changing it produces a compile error in the client repository — loud, local, and fixable."
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "when": {
+          "type": "string",
+          "description": "Lifecycle point at which the slot is invoked.",
+          "examples": ["before a charge is submitted to the provider"]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "true: the generated stub does not compile until the client implements it. Use for slots with no safe default, such as a chart of accounts."
+        }
+      }
+    },
+
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area", "name"],
+      "properties": {
+        "area": { "enum": ["app", "admin", "public", "mobile", "email", "document"] },
+        "name": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "examples": ["/settings/billing"] },
+        "nav": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Navigation entry registered into the kernel.ui shell. Order is overridable per client via the navigationOrder slot.",
+          "properties": {
+            "label": { "type": "string" },
+            "group": { "type": "string" },
+            "order": { "type": "integer" }
+          }
+        },
+        "permission": {
+          "type": "string",
+          "description": "Permission required to see this surface, resolved through whichever access capability is active."
+        }
+      }
+    },
+
+    "smokeTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "asserts"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "asserts": { "type": "string", "minLength": 1, "description": "What the generated test proves." },
+        "requires_credentials": {
+          "type": "boolean",
+          "default": false,
+          "description": "true: skipped when the external service is not configured, rather than failing."
+        }
+      }
+    },
+
+    "contractTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["with", "scenario", "asserts"],
+      "properties": {
+        "with": {
+          "$ref": "#/$defs/capabilityId",
+          "description": "The other side of the declared relationship. Every declared pair gets a contract test; it runs in CI on every change to either capability."
+        },
+        "scenario": { "type": "string", "minLength": 1, "examples": ["a member is added mid-cycle"] },
+        "asserts": { "type": "string", "minLength": 1 },
+        "mandatory": {
+          "type": "boolean",
+          "default": false,
+          "description": "true: absence is a validation error when both capabilities are in the resolved graph. Set for the pairs listed in the catalog's mandatory contract tests."
+        }
+      }
+    },
+
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "introduced_in", "up", "down"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9]{8}_[a-z][a-z0-9_]*$",
+          "description": "Date-prefixed, sortable, immutable once published.",
+          "examples": ["20260701_create_charges"]
+        },
+        "introduced_in": { "$ref": "#/$defs/semver" },
+        "up": { "type": "string", "description": "Path to the forward script, relative to the capability directory." },
+        "down": {
+          "type": "string",
+          "description": "Path to the rollback script. Required — a migration without a tested rollback fails publication."
+        },
+        "kind": { "enum": ["schema", "data", "codemod"], "default": "schema" },
+        "destructive": {
+          "type": "boolean",
+          "default": false,
+          "description": "Drops or rewrites existing data. Requires explicit confirmation at apply and is always surfaced in plan output."
+        },
+        "required_for_major": {
+          "type": "boolean",
+          "default": false,
+          "description": "Marks this as the migration satisfying the rule that a major bump must ship one. Publication of a major fails without exactly one."
+        }
+      }
+    },
+
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version", "output", "zone"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "examples": ["routes.ts"] },
+        "version": {
+          "$ref": "#/$defs/semver",
+          "description": "Versioned independently of the capability, so an upgrade only three-way merges templates that actually changed."
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Destination path in the client repository. May contain manifest interpolations.",
+          "examples": ["src/generated/pay.card/routes.ts"]
+        },
+        "zone": {
+          "enum": ["managed", "seeded"],
+          "description": "managed: overwritten on apply, hash-tracked, drift reported. seeded: written once on create, then owned by the client repository and never touched again."
+        },
+        "description": { "type": "string" }
+      }
+    }
+  }
+}

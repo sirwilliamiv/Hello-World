@@ -1,0 +1,70 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.audit",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Basic activity trail",
+  "tier": "kernel",
+  "price": { "model": "included" },
+  "integration_weight": 1,
+  "summary": "A minimal activity trail over entity, identity, and access events. Superseded by audit.history, which adds before/after values, tamper evidence, retention policy, redaction, and export. Capabilities requiring a defensible record (ai.agents, support.impersonation) declare audit.history as a hard dependency rather than relying on this.",
+
+  "package": { "name": "@forge/kernel-audit" },
+
+  "requires": [
+    { "id": "kernel.events", "range": "^1.0.0", "reason": "The trail is built by subscribing to the bus." },
+    { "id": "kernel.identity", "range": "^1.0.0", "reason": "Every entry names an actor." }
+  ],
+
+  "owns": [
+    { "name": "AuditEntry", "kind": "table", "append_only": true, "personal_data": true,
+      "description": "The shared audit primitive. Only the kernel may define it.",
+      "privacy": { "export_handler": "exportAuditEntries", "deletion_strategy": "retain_under_legal_basis",
+                   "retention_note": "Retained as the record of processing. The actor reference is anonymised with the user rather than the entry being deleted." } }
+  ],
+
+  "enhances": [
+    { "target": "kernel.access", "range": "^1.0.0",
+      "unlocks": "permission-gated access to the activity view; the audit.read permission is registered only when an access capability is present" }
+  ],
+
+  "consumes": [
+    { "name": "entity.*", "contract_versions": [1], "required": true,
+      "reason": "record creation, update, and deletion of every entity", "handler": "recordEntityEvent" },
+    { "name": "identity.*", "contract_versions": [1], "required": true,
+      "reason": "record logins, session lifecycle, and account changes", "handler": "recordIdentityEvent" },
+    { "name": "access.*", "contract_versions": [1], "required": false,
+      "reason": "record role grants and revocations", "handler": "recordAccessEvent" }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "record", "signature": "record(entry: AuditEntryInput): Promise<void>",
+      "description": "audit.history must satisfy this signature to upgrade this capability." },
+    { "kind": "ui_surface", "name": "ActivityView", "description": "Admin activity list." }
+  ],
+
+  "surfaces": [
+    { "area": "admin", "name": "Activity", "path": "/admin/activity", "permission": "audit.read",
+      "nav": { "label": "Activity", "group": "admin", "order": 90 } }
+  ],
+
+  "registers": [
+    { "registry": "kernel.access:permissions", "entries": [ { "action": "audit.read", "default_roles": ["owner", "admin"] } ] }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "entity change is recorded", "asserts": "creating an entity produces an audit entry naming the actor and the entity" },
+      { "name": "entries are immutable", "asserts": "an update or delete against an audit entry is rejected at the repository layer" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260601_create_kernel_audit", "introduced_in": "1.0.0",
+      "up": "migrations/20260601_create_kernel_audit.up.sql",
+      "down": "migrations/20260601_create_kernel_audit.down.sql" }
+  ],
+
+  "templates": []
+}

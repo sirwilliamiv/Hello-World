@@ -1,0 +1,179 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.data",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Entities, migrations, and the data layer",
+  "tier": "kernel",
+  "price": { "model": "included" },
+  "integration_weight": 0,
+  "summary": "Foundation for everything. Entity definition, migration running with rollback, soft delete, timestamps, optimistic locking, and the mechanism by which manifest-declared client entities become real tables. The universal entity events are the backbone of the whole system: search indexing, audit logging, webhooks, automation rules, and reporting all subscribe to them rather than coupling to individual capabilities.",
+
+  "package": { "name": "@forge/kernel-data" },
+
+  "requires": [],
+
+  "owns": [
+    {
+      "name": "Entity",
+      "kind": "registry",
+      "description": "The registry of every entity in the resolved graph, including manifest-declared client entities.",
+      "tenant_scoped": false,
+      "listable": false
+    },
+    {
+      "name": "Migration",
+      "kind": "table",
+      "description": "Applied migration ledger, with checksum and rollback availability.",
+      "tenant_scoped": false,
+      "listable": false,
+      "append_only": true
+    },
+    {
+      "name": "Revision",
+      "kind": "table",
+      "description": "Optimistic-locking revision counter per row.",
+      "tenant_scoped": false,
+      "listable": false
+    }
+  ],
+
+  "publishes": [
+    {
+      "name": "entity.created",
+      "contract_version": 1,
+      "per_entity": true,
+      "description": "Emitted for every entity in the system. Subscribed to by search indexing, audit, webhooks, automation rules, and reporting.",
+      "payload": {
+        "type": "object",
+        "required": ["entity", "id", "actor", "data"],
+        "properties": {
+          "entity": { "type": "string" },
+          "id": { "type": "string" },
+          "actor": { "type": ["string", "null"] },
+          "data": { "type": "object" }
+        }
+      }
+    },
+    {
+      "name": "entity.updated",
+      "contract_version": 1,
+      "per_entity": true,
+      "payload": {
+        "type": "object",
+        "required": ["entity", "id", "actor", "before", "after", "changed"],
+        "properties": {
+          "entity": { "type": "string" },
+          "id": { "type": "string" },
+          "actor": { "type": ["string", "null"] },
+          "before": { "type": "object" },
+          "after": { "type": "object" },
+          "changed": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    {
+      "name": "entity.deleted",
+      "contract_version": 1,
+      "per_entity": true,
+      "payload": {
+        "type": "object",
+        "required": ["entity", "id", "actor", "soft"],
+        "properties": {
+          "entity": { "type": "string" },
+          "id": { "type": "string" },
+          "actor": { "type": ["string", "null"] },
+          "soft": { "type": "boolean" }
+        }
+      }
+    },
+    {
+      "name": "entity.restored",
+      "contract_version": 1,
+      "per_entity": true,
+      "payload": {
+        "type": "object",
+        "required": ["entity", "id", "actor"],
+        "properties": {
+          "entity": { "type": "string" },
+          "id": { "type": "string" },
+          "actor": { "type": ["string", "null"] }
+        }
+      }
+    }
+  ],
+
+  "exposes": [
+    {
+      "kind": "interface",
+      "name": "Repository",
+      "signature": "Repository<T>(entity: EntityName): { find, findMany, create, update, softDelete, restore }",
+      "description": "The only sanctioned data access path. Tenant scoping and append-only enforcement live here, not in convention."
+    },
+    {
+      "kind": "interface",
+      "name": "Migration",
+      "signature": "interface Migration { id: string; up(db): Promise<void>; down(db): Promise<void> }"
+    },
+    {
+      "kind": "registry",
+      "name": "entities",
+      "description": "Entity registrations. Capabilities and manifest-declared client entities both land here, which is why client entities get admin, audit, search, and reporting for free."
+    }
+  ],
+
+  "slots": [
+    {
+      "name": "beforePersist",
+      "signature": "BeforePersistSlot",
+      "when": "before a row is written, after validation",
+      "description": "Client-specific mutation or rejection of a write."
+    },
+    {
+      "name": "afterPersist",
+      "signature": "AfterPersistSlot",
+      "when": "after a row is written, inside the same transaction",
+      "description": "Client-specific side effects that must be transactional with the write."
+    },
+    {
+      "name": "customValidator",
+      "signature": "CustomValidatorSlot",
+      "when": "during validation of any entity",
+      "description": "Client-specific validation rules beyond the declared field constraints."
+    }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "migrations apply and roll back", "asserts": "every registered migration runs forward and backward against an empty database" },
+      { "name": "optimistic locking rejects a stale write", "asserts": "a write with an outdated revision fails rather than silently overwriting" }
+    ]
+  },
+
+  "migrations": [
+    {
+      "id": "20260601_create_kernel_data",
+      "introduced_in": "1.0.0",
+      "up": "migrations/20260601_create_kernel_data.up.sql",
+      "down": "migrations/20260601_create_kernel_data.down.sql"
+    }
+  ],
+
+  "templates": [
+    {
+      "id": "entities.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.data/entities.ts",
+      "zone": "managed",
+      "description": "Entity registrations for capability-owned and manifest-declared entities."
+    },
+    {
+      "id": "client-migrations",
+      "version": "1.0.0",
+      "output": "migrations/client/",
+      "zone": "managed",
+      "description": "Migrations derived from manifest-declared client entities."
+    }
+  ]
+}
