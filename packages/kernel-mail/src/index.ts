@@ -13,7 +13,13 @@
 export { configureMail, mailConfig, maybeMailConfig, resetMail } from './config.js'
 export type { MailConfigInput, ResolvedMailConfig } from './config.js'
 
-export { DELIVER_JOB, deliverMessage, outboundMessages, send } from './mail.js'
+export {
+  DELIVER_JOB,
+  deliverMessage,
+  outboundMessages,
+  registerMailJobs,
+  send,
+} from './mail.js'
 
 export {
   resetMailDirectory,

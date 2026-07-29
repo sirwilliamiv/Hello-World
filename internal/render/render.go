@@ -94,8 +94,15 @@ type NavFact struct {
 type MigrationFact struct {
 	Capability string
 	ID         string
-	Up         string
-	Down       string
+	// Up and Down are package-qualified specifiers, e.g.
+	// "@forge/pay-card/migrations/20260701_create_pay_card.up.sql".
+	//
+	// A migration ships INSIDE its capability's npm package, so it upgrades with
+	// the package version like everything else in the runtime half. A bare
+	// repo-relative path would resolve against the client repository, where the
+	// file does not exist.
+	Up   string
+	Down string
 }
 
 // Rendered is one file produced from one template.
@@ -188,8 +195,11 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 			})
 		}
 		for _, mig := range n.Cap.Migrations {
+			pkg := packageOf(n.Cap)
 			f.Migrations = append(f.Migrations, MigrationFact{
-				Capability: n.Cap.ID, ID: mig.ID, Up: mig.Up, Down: mig.Down,
+				Capability: n.Cap.ID, ID: mig.ID,
+				Up:   pkg + "/" + mig.Up,
+				Down: pkg + "/" + mig.Down,
 			})
 		}
 		for _, ext := range n.Cap.External {

@@ -67,5 +67,103 @@
       "description": "Job registrations collected from the resolved graph.",
       "scope": "graph"
     }
+  ],
+  "publishes": [
+    {
+      "name": "job.enqueued",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Emitted by whichever capability occupies the work slot. When ops.queue supersedes this capability, ops.queue publishes these names instead — which is why two publishers of one event name never coexist."
+    },
+    {
+      "name": "job.started",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.succeeded",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "duration_ms"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.failed",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt",
+          "error"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "will_retry": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
   ]
 }

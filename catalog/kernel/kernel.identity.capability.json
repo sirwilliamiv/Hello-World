@@ -6,97 +6,339 @@
   "kernel_range": "^1.0.0",
   "name": "Users, sessions, and login",
   "tier": "kernel",
-  "price": { "model": "included" },
+  "price": {
+    "model": "included"
+  },
   "integration_weight": 0,
   "summary": "Every capability that touches a person depends on this. It is the reason authentication is never optional: if the product remembers a customer, it must know which customer.",
-
-  "package": { "name": "@forge/kernel-identity" },
-
+  "package": {
+    "name": "@forge/kernel-identity"
+  },
   "requires": [
-    { "id": "kernel.data", "range": "^1.0.0", "reason": "Users, sessions, and credentials are persisted entities." }
+    {
+      "id": "kernel.data",
+      "range": "^1.0.0",
+      "reason": "Users, sessions, and credentials are persisted entities."
+    }
   ],
-
   "owns": [
-    { "name": "User", "kind": "table", "personal_data": true, "tenant_scoped": false,
+    {
+      "name": "User",
+      "kind": "table",
+      "personal_data": true,
+      "tenant_scoped": false,
       "description": "The shared identity primitive. Only the kernel may define this.",
-      "privacy": { "export_handler": "exportUser", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeUser",
-                   "retention_note": "Anonymised rather than deleted so audit records and ledger entries referencing the actor stay intact." } },
-    { "name": "Session", "kind": "table", "personal_data": true, "tenant_scoped": false, "listable": false,
-      "privacy": { "export_handler": "exportSessions", "deletion_strategy": "delete", "deletion_handler": "deleteSessions" } },
-    { "name": "Credential", "kind": "table", "personal_data": true, "tenant_scoped": false, "listable": false,
+      "privacy": {
+        "export_handler": "exportUser",
+        "deletion_strategy": "anonymize",
+        "deletion_handler": "anonymizeUser",
+        "retention_note": "Anonymised rather than deleted so audit records and ledger entries referencing the actor stay intact."
+      }
+    },
+    {
+      "name": "Session",
+      "kind": "table",
+      "personal_data": true,
+      "tenant_scoped": false,
+      "listable": false,
+      "privacy": {
+        "export_handler": "exportSessions",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteSessions"
+      }
+    },
+    {
+      "name": "Credential",
+      "kind": "table",
+      "personal_data": true,
+      "tenant_scoped": false,
+      "listable": false,
       "description": "Password hashes and second-factor secrets. Never exported in plaintext.",
-      "privacy": { "export_handler": "exportCredentialMetadata", "deletion_strategy": "delete", "deletion_handler": "deleteCredentials" } },
-    { "name": "EmailVerification", "kind": "table", "personal_data": true, "tenant_scoped": false, "listable": false,
-      "privacy": { "export_handler": "exportVerifications", "deletion_strategy": "delete", "deletion_handler": "deleteVerifications" } },
-    { "name": "PasswordReset", "kind": "table", "personal_data": true, "tenant_scoped": false, "listable": false,
-      "privacy": { "export_handler": "exportResets", "deletion_strategy": "delete", "deletion_handler": "deleteResets" } }
+      "privacy": {
+        "export_handler": "exportCredentialMetadata",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteCredentials"
+      }
+    },
+    {
+      "name": "EmailVerification",
+      "kind": "table",
+      "personal_data": true,
+      "tenant_scoped": false,
+      "listable": false,
+      "privacy": {
+        "export_handler": "exportVerifications",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteVerifications"
+      }
+    },
+    {
+      "name": "PasswordReset",
+      "kind": "table",
+      "personal_data": true,
+      "tenant_scoped": false,
+      "listable": false,
+      "privacy": {
+        "export_handler": "exportResets",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteResets"
+      }
+    }
   ],
-
   "publishes": [
-    { "name": "identity.user.created", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "email"],
-        "properties": { "user_id": { "type": "string" }, "email": { "type": "string" }, "source": { "type": "string" } } } },
-    { "name": "identity.user.updated", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "changed"],
-        "properties": { "user_id": { "type": "string" }, "changed": { "type": "array", "items": { "type": "string" } } } } },
-    { "name": "identity.user.deleted", "contract_version": 1,
+    {
+      "name": "identity.user.created",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "email"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.user.updated",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "changed"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.user.deleted",
+      "contract_version": 1,
       "description": "Consumed widely for cleanup: detaching payment methods, revoking connections, releasing seats.",
-      "payload": { "type": "object", "required": ["user_id"],
-        "properties": { "user_id": { "type": "string" }, "reason": { "type": "string" } } } },
-    { "name": "identity.session.started", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "session_id"],
-        "properties": { "user_id": { "type": "string" }, "session_id": { "type": "string" }, "ip": { "type": "string" } } } },
-    { "name": "identity.session.ended", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "session_id"],
-        "properties": { "user_id": { "type": "string" }, "session_id": { "type": "string" }, "reason": { "type": "string" } } } },
-    { "name": "identity.login.failed", "contract_version": 1,
-      "payload": { "type": "object", "required": ["email"],
-        "properties": { "email": { "type": "string" }, "ip": { "type": "string" }, "reason": { "type": "string" } } } },
-    { "name": "identity.password.reset.requested", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id"],
-        "properties": { "user_id": { "type": "string" } } } }
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.session.started",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "session_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.session.ended",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "session_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.login.failed",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "identity.password.reset.requested",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "reset_request_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "reset_request_id": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Carries the address and an opaque request id — never the reset token itself. The event log is a persisted, append-only table, so a token in this payload would be a live credential at rest and readable by every capability subscribing to the bus. A consumer exchanges the request id for a single-use link via resetLinkFor()."
+    }
   ],
-
   "consumes": [],
-
   "exposes": [
-    { "kind": "interface", "name": "currentUser", "signature": "currentUser(): Promise<User | null>" },
-    { "kind": "interface", "name": "AuthGuard", "signature": "AuthGuard(handler: RouteHandler): RouteHandler" },
-    { "kind": "route", "name": "auth", "path": "/auth/*", "description": "Login, logout, registration, verification, and password reset." },
-    { "kind": "ui_surface", "name": "AccountSettings" }
+    {
+      "kind": "interface",
+      "name": "currentUser",
+      "signature": "currentUser(): Promise<User | null>"
+    },
+    {
+      "kind": "interface",
+      "name": "AuthGuard",
+      "signature": "AuthGuard(handler: RouteHandler): RouteHandler"
+    },
+    {
+      "kind": "route",
+      "name": "auth",
+      "path": "/auth/*",
+      "description": "Login, logout, registration, verification, and password reset."
+    },
+    {
+      "kind": "ui_surface",
+      "name": "AccountSettings"
+    },
+    {
+      "kind": "interface",
+      "name": "resetLinkFor",
+      "signature": "resetLinkFor(resetRequestId: string): Promise<string>",
+      "description": "Exchanges an opaque reset request id for a single-use reset link. This is the sanctioned way for a mailer to build the message without the token ever entering an event payload or the event log."
+    }
   ],
-
   "surfaces": [
-    { "area": "public", "name": "Login", "path": "/auth/login" },
-    { "area": "app", "name": "Account", "path": "/account", "nav": { "label": "Account", "group": "settings", "order": 100 } }
+    {
+      "area": "public",
+      "name": "Login",
+      "path": "/auth/login"
+    },
+    {
+      "area": "app",
+      "name": "Account",
+      "path": "/account",
+      "nav": {
+        "label": "Account",
+        "group": "settings",
+        "order": 100
+      }
+    }
   ],
-
   "slots": [
-    { "name": "onRegistration", "signature": "OnRegistrationSlot", "when": "after a user record is created, before the welcome email",
-      "description": "Client-specific onboarding: default records, external enrolment, invite-code redemption." },
-    { "name": "passwordPolicy", "signature": "PasswordPolicySlot", "when": "on password set or change",
-      "description": "Client-specific complexity and reuse rules." },
-    { "name": "postLoginRedirect", "signature": "PostLoginRedirectSlot", "when": "after a successful login",
-      "description": "Where a user lands, which is usually role-dependent." }
+    {
+      "name": "onRegistration",
+      "signature": "OnRegistrationSlot",
+      "when": "after a user record is created, before the welcome email",
+      "description": "Client-specific onboarding: default records, external enrolment, invite-code redemption."
+    },
+    {
+      "name": "passwordPolicy",
+      "signature": "PasswordPolicySlot",
+      "when": "on password set or change",
+      "description": "Client-specific complexity and reuse rules."
+    },
+    {
+      "name": "postLoginRedirect",
+      "signature": "PostLoginRedirectSlot",
+      "when": "after a successful login",
+      "description": "Where a user lands, which is usually role-dependent."
+    }
   ],
-
   "tests": {
     "smoke": [
-      { "name": "register, verify, log in, log out", "asserts": "the full credential lifecycle works end to end" },
-      { "name": "session revocation is immediate", "asserts": "an ended session cannot authenticate a subsequent request" }
+      {
+        "name": "register, verify, log in, log out",
+        "asserts": "the full credential lifecycle works end to end"
+      },
+      {
+        "name": "session revocation is immediate",
+        "asserts": "an ended session cannot authenticate a subsequent request"
+      }
     ]
   },
-
   "migrations": [
-    { "id": "20260601_create_kernel_identity", "introduced_in": "1.0.0",
+    {
+      "id": "20260601_create_kernel_identity",
+      "introduced_in": "1.0.0",
       "up": "migrations/20260601_create_kernel_identity.up.sql",
-      "down": "migrations/20260601_create_kernel_identity.down.sql" }
+      "down": "migrations/20260601_create_kernel_identity.down.sql"
+    }
   ],
-
   "templates": [
-    { "id": "auth-routes.ts", "version": "1.0.0", "output": "src/app/auth/[...auth]/route.ts", "zone": "managed",
-      "description": "Mounts the auth handler from the package. Configuration only." },
-    { "id": "slots", "version": "1.0.0", "output": "src/slots/kernel.identity/", "zone": "seeded",
-      "description": "Slot stubs, written once and then owned by the client repository." }
+    {
+      "id": "auth-routes.ts",
+      "version": "1.0.0",
+      "output": "src/app/auth/[...auth]/route.ts",
+      "zone": "managed",
+      "description": "Mounts the auth handler from the package. Configuration only."
+    },
+    {
+      "id": "slots",
+      "version": "1.0.0",
+      "output": "src/slots/kernel.identity/",
+      "zone": "seeded",
+      "description": "Slot stubs, written once and then owned by the client repository."
+    }
   ]
 }

@@ -89,8 +89,10 @@ describe('component styles', () => {
   it('contains no literal colour anywhere', () => {
     // This is the invariant that makes "branding is a token change and nothing
     // else" true rather than aspirational.
+    // Colour keywords are matched only as whole identifiers, so a property name
+    // like `white-space` is not a false positive.
     const literals = componentsCss.match(
-      /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|\b(?:red|blue|green|black|white|grey|gray|orange|purple|yellow)\b/gu,
+      /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|(?<![-\w])(?:red|blue|green|black|white|grey|gray|orange|purple|yellow)(?![-\w])/gu,
     )
     expect(literals ?? []).toEqual([])
   })

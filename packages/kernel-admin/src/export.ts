@@ -8,7 +8,8 @@
  * grantable independently.
  */
 
-import { stringify } from '@forge/kernel-ui'
+// React-free entry point; see the note in registries.ts.
+import { stringify } from '@forge/kernel-ui/data'
 
 import type { AdminListView } from './resolve.js'
 import type { Row } from './ports/repository.js'

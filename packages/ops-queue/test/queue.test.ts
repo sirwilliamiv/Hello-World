@@ -188,12 +188,13 @@ describe('ops.queue — durable background processing', () => {
       queues: ['default'],
       limit: 1,
       workerId: 'doomed',
-      now: new Date(Date.now() - 60_000),
+      now: new Date(),
       excludeKinds: [],
     })
     expect((await findJob(ref.id))?.status).toBe('running')
 
-    const reclaimed = await store.reclaimExpiredLeases(new Date())
+    // The worker holding it never came back; its lease has now aged out.
+    const reclaimed = await store.reclaimExpiredLeases(new Date(Date.now() + 60_000))
     expect(reclaimed).toBe(1)
     expect((await findJob(ref.id))?.status).toBe('pending')
   })

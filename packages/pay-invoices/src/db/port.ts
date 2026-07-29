@@ -1,5 +1,7 @@
 import type { InvoiceStatus } from '../types.js'
 
+export type { InvoiceStatus }
+
 /**
  * The narrow persistence port for pay.invoices.
  *
@@ -90,11 +92,17 @@ export interface InvoiceTx {
   listInvoicesForCustomer(customerId: string): Promise<InvoiceRow[]>
   listOverdueInvoices(asOf: Date): Promise<InvoiceRow[]>
 
-  /** Balance and status only. An issued invoice's amounts are never edited. */
-  updateInvoiceBalance(
-    id: string,
-    patch: { paidMinor?: number; creditedMinor?: number; status?: InvoiceStatus; voidedAt?: Date },
-  ): Promise<InvoiceRow>
+  /**
+   * Applies a RELATIVE change to the balance and recomputes the status, in one
+   * statement. Relative rather than absolute on purpose: two concurrent payments
+   * against one invoice would both read the same `paid_minor` and the second
+   * absolute write would silently discard the first.
+   *
+   * An issued invoice's amounts (subtotal, tax, total, number) are never edited.
+   */
+  applyInvoiceDelta(id: string, paidDelta: number, creditedDelta: number): Promise<InvoiceRow>
+  /** Sets status to `void` and records when. */
+  markInvoiceVoid(id: string, voidedAt: Date): Promise<InvoiceRow>
   setInvoiceDocumentVersion(id: string, template: string, version: string): Promise<void>
 
   /** `ON CONFLICT (invoice_id, charge_id) DO NOTHING RETURNING *`. */

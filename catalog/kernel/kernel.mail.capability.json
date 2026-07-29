@@ -6,57 +6,110 @@
   "kernel_range": "^1.0.0",
   "name": "System email plumbing",
   "tier": "kernel",
-  "price": { "model": "included" },
+  "price": {
+    "model": "included"
+  },
   "integration_weight": 0,
   "summary": "Only enough to deliver verification and password reset. No templating, no deliverability configuration, no tracking, no inbound routing. Superseded by comms.email, which adds all of it.",
-
-  "package": { "name": "@forge/kernel-mail" },
-
+  "package": {
+    "name": "@forge/kernel-mail"
+  },
   "requires": [
-    { "id": "kernel.work", "range": "^1.0.0", "reason": "Delivery is asynchronous so a request never blocks on an SMTP round trip." }
+    {
+      "id": "kernel.data",
+      "range": "^1.0.0",
+      "reason": "OutboundMessage is a persisted entity holding personal data, with declared export and deletion handlers; it must go through the repository layer."
+    },
+    {
+      "id": "kernel.work",
+      "range": "^1.0.0",
+      "reason": "Delivery is asynchronous so a request never blocks on an SMTP round trip."
+    }
   ],
-
   "owns": [
-    { "name": "OutboundMessage", "kind": "table", "personal_data": true,
+    {
+      "name": "OutboundMessage",
+      "kind": "table",
+      "personal_data": true,
       "description": "Delivery record. Body is not retained beyond the send window.",
-      "privacy": { "export_handler": "exportMessages", "deletion_strategy": "delete", "deletion_handler": "deleteMessages" } }
+      "privacy": {
+        "export_handler": "exportMessages",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteMessages"
+      }
+    }
   ],
-
   "consumes": [
-    { "name": "identity.user.created", "contract_versions": [1], "required": true,
-      "reason": "send the email verification message", "handler": "sendVerification" },
-    { "name": "identity.password.reset.requested", "contract_versions": [1], "required": true,
-      "reason": "send the password reset message", "handler": "sendPasswordReset" }
+    {
+      "name": "identity.user.created",
+      "contract_versions": [
+        1
+      ],
+      "required": true,
+      "reason": "send the email verification message",
+      "handler": "sendVerification"
+    },
+    {
+      "name": "identity.password.reset.requested",
+      "contract_versions": [
+        1
+      ],
+      "required": true,
+      "reason": "send the password reset message",
+      "handler": "sendPasswordReset"
+    }
   ],
-
   "exposes": [
-    { "kind": "interface", "name": "send", "signature": "send(message: OutboundMessageInput): Promise<void>",
-      "description": "comms.email must satisfy this signature to upgrade this capability." }
+    {
+      "kind": "interface",
+      "name": "send",
+      "signature": "send(message: OutboundMessageInput): Promise<void>",
+      "description": "comms.email must satisfy this signature to upgrade this capability."
+    }
   ],
-
   "external": [
-    { "service": "SMTP or transactional provider", "purpose": "Deliver verification and password reset messages.",
+    {
+      "service": "SMTP or transactional provider",
+      "purpose": "Deliver verification and password reset messages.",
       "credentials": [
-        { "name": "MAIL_DSN", "description": "Connection string or provider API key for outbound mail.", "scope": "environment" },
-        { "name": "MAIL_FROM_ADDRESS", "description": "Envelope sender address.", "scope": "environment", "optional": true }
-      ] }
+        {
+          "name": "MAIL_DSN",
+          "description": "Connection string or provider API key for outbound mail.",
+          "scope": "environment"
+        },
+        {
+          "name": "MAIL_FROM_ADDRESS",
+          "description": "Envelope sender address.",
+          "scope": "environment",
+          "optional": true
+        }
+      ]
+    }
   ],
-
   "tests": {
     "smoke": [
-      { "name": "verification email is dispatched", "asserts": "registering a user enqueues exactly one verification message",
-        "requires_credentials": true }
+      {
+        "name": "verification email is dispatched",
+        "asserts": "registering a user enqueues exactly one verification message",
+        "requires_credentials": true
+      }
     ]
   },
-
   "migrations": [
-    { "id": "20260601_create_kernel_mail", "introduced_in": "1.0.0",
+    {
+      "id": "20260601_create_kernel_mail",
+      "introduced_in": "1.0.0",
       "up": "migrations/20260601_create_kernel_mail.up.sql",
-      "down": "migrations/20260601_create_kernel_mail.down.sql" }
+      "down": "migrations/20260601_create_kernel_mail.down.sql"
+    }
   ],
-
   "templates": [
-    { "id": "mail-config.ts", "version": "1.0.0", "output": "src/generated/kernel.mail/config.ts", "zone": "managed",
-      "description": "Binds the environment variable schema. Reads values from the environment at runtime; never contains them." }
+    {
+      "id": "mail-config.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.mail/config.ts",
+      "zone": "managed",
+      "description": "Binds the environment variable schema. Reads values from the environment at runtime; never contains them."
+    }
   ]
 }

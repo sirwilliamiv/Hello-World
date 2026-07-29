@@ -193,6 +193,32 @@ rule that makes upgrades safe:
 Without this rule, enabling Fine-Grained Permissions silently breaks every capability that
 called `can()`. With it, the failure is a validation error naming the missing interface.
 
+**Substitution has to happen twice, and the second one is easy to miss.**
+
+The generated wiring re-exports from whichever capability occupies the slot, so the
+*application* calls the right implementation. But a capability **package** cannot import a
+generated path — `@forge/kernel-mail` imports `@forge/kernel-work` directly, and a
+template-level re-export does nothing for it. Left there, enabling Background Processing
+would give the client a durable queue for their own code while every capability's internal
+work stayed in-process, silently. That is exactly the class of failure the rule exists to
+prevent, arriving through the back door.
+
+So the upgraded capability's package exports a **thin forwarding layer over an installable
+backend**, and the upgrader installs itself into it at configuration time. `kernel.work`'s
+`enqueue`/`schedule` delegate to whatever backend is installed; `configureQueue()` installs
+`ops.queue`. The interface is unchanged, no caller moves, and the substitution reaches
+package-to-package calls as well as application code.
+
+The cost is that the upgrader takes a runtime dependency on the capability it supersedes —
+`@forge/ops-queue` depends on `@forge/kernel-work`. That is correct rather than
+regrettable: the superseded package still owns the interface definition, and something has
+to keep it installable. Note that `Graph.Packages` omits superseded capabilities, so the
+dependency must be declared in the upgrader's own `package.json` to be installed at all.
+
+**Every upgrade in the catalog needs this treatment**, not just `ops.queue`:
+`access.rebac` over `kernel.access`, `comms.email` over `kernel.mail`, and `audit.history`
+over `kernel.audit` all have capability packages calling the upgraded interface directly.
+
 ### Wildcard and selector relationships
 
 The catalog contains relationships that are not to a specific capability: `audit.history`

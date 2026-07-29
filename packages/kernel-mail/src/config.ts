@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { registerMailJobs } from './mail.js'
 import { MemoryOutboundMessageStore, type OutboundMessageStore } from './store.js'
 import { transportForDsn } from './transports.js'
 import { MailNotConfiguredError, type MailTransport } from './types.js'
@@ -35,7 +36,13 @@ export interface ResolvedMailConfig {
 
 const schema = z.object({
   dsn: z.string().min(1).optional(),
-  from: z.string().email().default('no-reply@localhost'),
+  // Not `.email()`: "Acme <no-reply@acme.test>" is a legitimate From header and
+  // would fail a strict address check.
+  from: z
+    .string()
+    .min(3)
+    .refine((value) => value.includes('@'), 'MAIL_FROM_ADDRESS must contain an address')
+    .default('no-reply@localhost'),
   appUrl: z.string().url().optional(),
   retainBody: z.boolean().default(false),
 })
@@ -59,6 +66,7 @@ export function configureMail(input: MailConfigInput = {}): ResolvedMailConfig {
     store: input.store ?? new MemoryOutboundMessageStore(),
     retainBody: parsed.retainBody,
   }
+  registerMailJobs()
   return config
 }
 

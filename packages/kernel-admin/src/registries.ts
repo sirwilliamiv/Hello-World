@@ -13,7 +13,10 @@
  * are applied after these — see resolve.ts for the precedence.
  */
 
-import { createRegistry, type Registry } from '@forge/kernel-ui'
+// `@forge/kernel-ui/registry` is a declared, React-free entry point of the
+// design system — see its package.json `exports`. Pure server-side resolution
+// must not pull the whole component library in behind it.
+import { createRegistry, type Registry } from '@forge/kernel-ui/registry'
 
 import type { AdminUser } from './ports/access.js'
 import type { Row } from './ports/repository.js'

@@ -105,6 +105,13 @@ export async function outboundMessages(): Promise<OutboundMessage[]> {
   return mailConfig().store.list()
 }
 
-// Registered at import time, the same way a capability's event handlers are
-// wired: nothing in the generated half calls a register function for mail.
-registerJobHandler(DELIVER_JOB, deliverMessage)
+/**
+ * Register the delivery job with `kernel.work`.
+ *
+ * Called by `configureMail` rather than run as an import side effect, so that
+ * configuring mail twice — a second boot, a test — re-registers the handler
+ * instead of leaving a queue with a job kind nothing answers.
+ */
+export function registerMailJobs(): void {
+  registerJobHandler(DELIVER_JOB, deliverMessage)
+}

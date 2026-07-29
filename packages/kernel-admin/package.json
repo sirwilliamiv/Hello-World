@@ -12,10 +12,17 @@
   "dependencies": {
     "@forge/kernel-access": "workspace:*",
     "@forge/kernel-data": "workspace:*",
-    "@forge/kernel-ui": "workspace:*"
+    "@forge/kernel-ui": "workspace:*",
+    "zod": "3.25.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.0"
   }
 }

@@ -75,12 +75,26 @@ export const SQL = {
      WHERE status IN ('open', 'part_paid')
        AND due_at < $1
      ORDER BY due_at`,
-  updateInvoiceBalance: `
+  /**
+   * Relative, so two concurrent payments against one invoice cannot lose an
+   * update, and the status is derived in the same statement rather than from a
+   * value the caller read a moment ago.
+   */
+  applyInvoiceDelta: `
     UPDATE invoice
-       SET paid_minor     = COALESCE($2, paid_minor),
-           credited_minor = COALESCE($3, credited_minor),
-           status         = COALESCE($4, status),
-           voided_at      = COALESCE($5, voided_at)
+       SET paid_minor     = paid_minor + $2,
+           credited_minor = credited_minor + $3,
+           status = CASE
+                      WHEN status = 'void' THEN 'void'
+                      WHEN paid_minor + $2 + credited_minor + $3 >= total_minor THEN 'paid'
+                      WHEN paid_minor + $2 + credited_minor + $3 > 0 THEN 'part_paid'
+                      ELSE 'open'
+                    END
+     WHERE id = $1
+    RETURNING *`,
+  markInvoiceVoid: `
+    UPDATE invoice
+       SET status = 'void', voided_at = $2
      WHERE id = $1
     RETURNING *`,
   setInvoiceDocumentVersion: `
@@ -257,14 +271,14 @@ function makeTx(tx: KernelTx): InvoiceTx {
     async listOverdueInvoices(asOf) {
       return (await tx.execute(SQL.selectOverdueInvoices, [asOf])).map(toInvoiceRow)
     },
-    async updateInvoiceBalance(id, patch) {
-      const rows = await tx.execute(SQL.updateInvoiceBalance, [
-        id,
-        patch.paidMinor ?? null,
-        patch.creditedMinor ?? null,
-        patch.status ?? null,
-        patch.voidedAt ?? null,
-      ])
+    async applyInvoiceDelta(id, paidDelta, creditedDelta) {
+      const rows = await tx.execute(SQL.applyInvoiceDelta, [id, paidDelta, creditedDelta])
+      const mapped = one(rows, toInvoiceRow)
+      if (mapped === null) throw new Error(`no invoice ${id}`)
+      return mapped
+    },
+    async markInvoiceVoid(id, voidedAt) {
+      const rows = await tx.execute(SQL.markInvoiceVoid, [id, voidedAt])
       const mapped = one(rows, toInvoiceRow)
       if (mapped === null) throw new Error(`no invoice ${id}`)
       return mapped

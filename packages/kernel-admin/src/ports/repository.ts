@@ -29,16 +29,24 @@ export interface FindManyResult<T> {
   readonly total: number
 }
 
-export interface Repository<T extends Row = Row> {
-  find(id: string): Promise<T | undefined>
-  findMany(options?: FindManyOptions): Promise<FindManyResult<T>>
-  create(data: Partial<T>): Promise<T>
-  update(id: string, data: Partial<T>): Promise<T>
+/**
+ * Deliberately not generic over a row type.
+ *
+ * kernel.admin is generated from a runtime registry, so it never knows an
+ * entity's static shape — a generic parameter here would be a type it could
+ * only ever satisfy by casting. kernel.data's own `Repository<T>` is generic and
+ * assignable to this, so the capability that *does* know the type keeps it.
+ */
+export interface Repository {
+  find(id: string): Promise<Row | undefined>
+  findMany(options?: FindManyOptions): Promise<FindManyResult<Row>>
+  create(data: Partial<Row>): Promise<Row>
+  update(id: string, data: Partial<Row>): Promise<Row>
   softDelete(id: string): Promise<void>
   restore(id: string): Promise<void>
 }
 
-export type RepositoryFactory = <T extends Row = Row>(entity: string) => Repository<T>
+export type RepositoryFactory = (entity: string) => Repository
 
 let factory: RepositoryFactory | undefined
 
@@ -51,9 +59,7 @@ interface KernelDataModule {
 }
 
 /** Resolve a repository for an entity, loading kernel.data lazily. */
-export async function repositoryFor<T extends Row = Row>(
-  entity: string,
-): Promise<Repository<T>> {
+export async function repositoryFor(entity: string): Promise<Repository> {
   if (factory === undefined) {
     const mod = (await import('@forge/kernel-data')) as unknown as KernelDataModule
     if (typeof mod.Repository !== 'function') {
@@ -64,5 +70,5 @@ export async function repositoryFor<T extends Row = Row>(
     }
     factory = mod.Repository
   }
-  return factory<T>(entity)
+  return factory(entity)
 }

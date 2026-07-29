@@ -197,8 +197,12 @@ function resolvePath(path: string, scopes: readonly unknown[], locals: Locals): 
   const scope = scopes[scopes.length - 1 - depth]
   if (rest === '' || rest === 'this' || rest === '.') return scope
 
+  // `this.amount` and `amount` mean the same thing; the explicit form reads better
+  // inside an {{#each}} and templates use it, so both resolve.
+  const segments = rest.split('.').filter((segment, index) => !(index === 0 && segment === 'this'))
+
   let current: unknown = scope
-  for (const segment of rest.split('.')) {
+  for (const segment of segments) {
     if (current === null || current === undefined) return undefined
     if (typeof current !== 'object') return undefined
     current = (current as Record<string, unknown>)[segment]

@@ -101,8 +101,9 @@ export {
   scheduledJobs,
 } from './schema.js'
 
-export { QueueMonitor, queueMonitorSnapshot } from './monitor.js'
-export type { QueueMonitorProps, QueueMonitorSnapshot } from './monitor.js'
+// The QueueMonitor ui_surface lives at '@forge/ops-queue/monitor', not here:
+// it is the one thing in this package that imports React, and the worker entry
+// point must not pull a UI framework into a background process.
 
 /* -------------------------------------------------------------------------- */
 /* The upgrade contract, checked by the compiler.                             */
