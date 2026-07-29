@@ -28,7 +28,7 @@ import type { CreditNote, Invoice, InvoiceLine, Receipt } from './types.js'
 export type RenderedDocument = GeneratedDocument
 
 /** The stored (text) form of a pin. */
-function pinOf(version: number): string {
+export function pinOf(version: number): string {
   return String(version)
 }
 

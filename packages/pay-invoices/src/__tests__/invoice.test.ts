@@ -256,9 +256,16 @@ describe('production statements', () => {
     const referenced = new Set<string>()
     for (const statement of Object.values(SQL)) {
       for (const m of statement.matchAll(/\b(?:FROM|INTO|UPDATE|JOIN)\s+(\w+)/g)) {
-        referenced.add(m[1] as string)
+        const token = m[1] as string
+        // `ON CONFLICT … DO UPDATE SET` is a clause of the INSERT above it, not a
+        // second table reference — the table it targets was already captured by
+        // that statement's `INTO`. Without this the keyword SET is read as a table.
+        if (token.toUpperCase() === 'SET') continue
+        referenced.add(token)
       }
     }
+    // Guard against the scan silently matching nothing and passing vacuously.
+    expect([...referenced].sort()).toEqual([...owned].sort())
     for (const table of referenced) {
       expect(owned.has(table), `${table} is not owned by pay.invoices`).toBe(true)
     }

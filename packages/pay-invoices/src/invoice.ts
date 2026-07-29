@@ -10,7 +10,7 @@ import {
 } from './errors.js'
 import { assertCurrencyCode, assertIntegerMinor, currencyOf, minorOf, money } from './money.js'
 import { formatInvoiceNumber, periodKey } from './numbering.js'
-import { renderInvoice } from './render.js'
+import { pinOf, renderInvoice } from './render.js'
 import type { NumberingSchemeContext, PaymentTermsContext } from './slots.js'
 import type {
   CreditNote,
@@ -295,7 +295,7 @@ async function issueImpl(input: InvoiceInput): Promise<Invoice> {
   return {
     ...result,
     documentTemplate: INVOICE_TEMPLATE_ID,
-    documentTemplateVersion: rendered.templateVersion,
+    documentTemplateVersion: pinOf(rendered.templateVersion),
   }
 }
 

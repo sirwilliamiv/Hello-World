@@ -5,7 +5,7 @@ import { InvalidNumberingSchemeError, formatInvoiceNumber, parseNumberingScheme,
 import { configureInvoices, __resetInvoicesForTests } from '../config.js'
 import { SQL } from '../db/postgres.js'
 import { MemoryInvoiceStore } from '../testing/memory-store.js'
-import { LEGAL_ENTITY, docs, setupInvoices } from '../testing/harness.js'
+import { LEGAL_ENTITY, setupInvoices } from '../testing/harness.js'
 
 const line = (minor: number) => ({ description: 'Consulting', unitAmount: Money.of(minor, 'USD') })
 
@@ -283,8 +283,9 @@ describe('smoke: invoice issues and renders', () => {
     expect(invoice.total.amountMinor).toBe(158_333)
     expect(invoice.dueAt.toISOString()).toBe('2026-07-31T09:00:00.000Z')
 
-    expect(docs.renderCount()).toBe(1)
-    expect(invoice.documentTemplateVersion).toBe('v1')
-    expect(h.store.state.invoices[0]?.documentTemplateVersion).toBe('v1')
+    // docs.generation numbers template versions from 1; the rendering pins it.
+    expect(h.docs.renderCount()).toBe(1)
+    expect(invoice.documentTemplateVersion).toBe('1')
+    expect(h.store.state.invoices[0]?.documentTemplateVersion).toBe('1')
   })
 })
