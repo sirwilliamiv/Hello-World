@@ -96,6 +96,14 @@ export interface QueueStore {
    */
   reclaimExpiredLeases(leasedBefore: Date): Promise<number>
 
+  /**
+   * Hand leased-but-not-started jobs straight back, undoing the attempt the
+   * lease counted. Used when a per-kind concurrency limit means a worker
+   * claimed more than it may run — releasing is honest, whereas holding the
+   * rows in memory would put them back where `kernel.work` had them.
+   */
+  releaseJobs(ids: readonly string[]): Promise<void>
+
   completeJob(input: CompleteJobInput): Promise<void>
 
   /** Retry, dead-letter, or ignore — decided atomically. */

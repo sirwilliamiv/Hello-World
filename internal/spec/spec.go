@@ -233,7 +233,8 @@ type Template struct {
 	ID          string `json:"id"`
 	Version     string `json:"version"`
 	Output      string `json:"output"`
-	Zone        string `json:"zone"` // managed | seeded
+	Zone        string `json:"zone"`  // managed | seeded
+	Scope       string `json:"scope"` // capability | graph (default capability)
 	Description string `json:"description,omitempty"`
 }
 

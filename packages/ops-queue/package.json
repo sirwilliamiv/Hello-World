@@ -10,7 +10,19 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@forge/kernel-events": "workspace:*"
+    "@forge/kernel-events": "workspace:*",
+    "@forge/kernel-work": "workspace:*",
+    "drizzle-orm": "0.44.2",
+    "postgres": "3.4.5",
+    "zod": "3.25.0"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

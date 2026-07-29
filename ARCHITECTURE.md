@@ -589,35 +589,54 @@ The primary defense is architectural, not procedural: capabilities ship as npm p
 For the residue: three zones, hash tracking, drift reported and never silently overwritten,
 slots as the sanctioned customisation path, per-file recorded ejection.
 
-**Measured, and the risk was real.** The Phase 1 product (kernel + `pay.card` +
-`pay.invoices` + their closure) generates **820 lines of managed code across 24 files**,
-plus 32 seeded files the client owns outright.
+**Measured — and the budget turned out to be measuring the wrong thing.**
 
-| Attributed to | 0 client entities | 12 client entities × 8 fields |
+The Phase 1 product generates **1,141 lines of managed code across 26 files**, plus 33
+seeded files the client owns outright. Attributed correctly, it looks like this:
+
+| Attributed to | Lines | Changes when… |
 |---|---|---|
-| `kernel.data` (worst capability) | 260 | 260 |
-| `kernel.events` | 95 | 95 |
-| `kernel.admin` | 47 | 59 |
-| `<client>` | 12 | 504 |
+| `<graph>` | 817 | **any** capability in the product changes |
+| `<product>` | 109 | the capability set or manifest changes |
+| `<client>` | 14 (504 with 12 client entities) | the manifest's entity list changes |
+| worst single capability (`ops.queue`) | **35** | that capability upgrades |
 
-The first measurement put `kernel.data` at **664 lines — a clear breach** — because the
-client-entity registrations and their SQL were rendered inside `kernel.data`'s templates.
-That was a categorisation error, not a budget failure: those files are *the client's data
-model rendered*, and they change when the manifest changes, not when a capability
-upgrades. They now render as `<client>` (`internal/render/product.go`) and are measured
-against a separate rule.
+Getting here took two corrections, and both were the same category error:
 
-**Capability output must stay flat against the client's data model.** That property is
-what makes the budget hold at all, and it is enforced by a test
-(`TestCapabilityOutputDoesNotScaleWithClientEntities`) that fails if any capability grows
-by more than 50 lines when twelve client entities are added.
+1. Client-entity registrations and their SQL were rendering inside `kernel.data`'s
+   templates, putting it at **664 lines** for a 12-entity client. Those files are the
+   client's data model rendered; they now render as `<client>`.
+2. The typed event-payload map and the permission set were attributed to `kernel.events`
+   and `kernel.access`. They are projections of the **whole resolved graph** — the payload
+   map alone went from 95 to 339 lines just by adding types, and would reach four figures
+   at a 40-capability catalog. Templates now declare `scope: "capability" | "graph"`, and
+   graph-scoped output is measured separately.
 
-The Phase 6 capabilities named as the original risk — `ops.formbuilder`, `ops.reporting`,
-`integrate.publicapi` — are still unmeasured, because they are not built. They must follow
-the same rule: anything derived from client declarations renders as `<client>`, and
-anything that genuinely cannot be kept flat moves to build-time generation (a Next.js
-plugin rendering into `.next/` from the manifest, never into the repository) rather than
-raising the budget.
+**The conclusion the numbers force.** The 400-line budget was designed to bound the merge
+risk of a *capability upgrade*. With attribution correct, per-capability output is 35 lines
+at worst — the budget is nowhere near binding and was never the real constraint. Nearly all
+generated code is graph-derived integration.
+
+That is a better position than it sounds, because the two kinds of file carry very
+different risk:
+
+- **Capability-scoped files** are small, stable, and change only when their own capability
+  upgrades. These are the ones a three-way merge must handle well, and at 35 lines it will.
+- **Graph-scoped files** are large but contain **no client-authored content whatsoever** —
+  they are pure projections of the resolved graph. They should be regenerated wholesale on
+  every apply, and drift in one is a much stronger signal than drift elsewhere: it means
+  someone hand-edited a file that is definitionally derived, which no legitimate workflow
+  requires.
+
+The budget stays and is still enforced, because it is what keeps capability-scoped output
+from creeping back up. But the honest statement is that the generated-vs-custom boundary is
+held by the *zone* model (§4) and by keeping implementation in npm packages — not by this
+number.
+
+**Still unmeasured**: `ops.formbuilder`, `ops.reporting`, and `integrate.publicapi` are not
+built. They must follow the same rule — anything derived from client declarations renders
+as `<client>`, anything derived from the graph declares `scope: "graph"`, and whatever
+remains is held to the capability budget.
 
 ### 9.2 Upgrading a capability across a live fleet
 

@@ -1,12 +1,24 @@
-// Payload types compiled from the resolved `publishes` schemas, so a contract
-// violation is a build error rather than a runtime surprise.
-export type ResolvedEvent =
-{{- range .Graph.Subscriptions }}
-  | {{ .Event | quote }}
+// Payload types compiled from the resolved `publishes` schemas.
+//
+// The module augmentation below is what makes a contract violation a BUILD
+// error rather than a runtime surprise: publish() is generic over this map, so
+// emitting an event with the wrong payload shape fails `tsc`.
+{{- range .Graph.PublishedEvents }}
+export interface {{ .Name | pascal }}V{{ .ContractVersion }}Payload {{ .PayloadType }}
 {{- end }}
 
+declare module '@forge/kernel-events' {
+  interface EventPayloadMap {
+{{- range .Graph.PublishedEvents }}
+    {{ .Name | quote }}: {{ .Name | pascal }}V{{ .ContractVersion }}Payload
+{{- end }}
+  }
+}
+
 export const EVENT_CONTRACT_VERSIONS = {
-{{- range .Graph.Subscriptions }}
-  {{ .Event | quote }}: [{{ range $i, $v := .Versions }}{{ if $i }}, {{ end }}{{ $v }}{{ end }}],
+{{- range .Graph.PublishedEvents }}
+  {{ .Name | quote }}: {{ .ContractVersion }},
 {{- end }}
 } as const
+
+export type ResolvedEvent = keyof typeof EVENT_CONTRACT_VERSIONS

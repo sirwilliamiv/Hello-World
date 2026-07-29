@@ -6,67 +6,168 @@
   "kernel_range": "^1.0.0",
   "name": "Basic roles and permissions",
   "tier": "kernel",
-  "price": { "model": "included" },
+  "price": {
+    "model": "included"
+  },
   "integration_weight": 0,
   "summary": "Owner, admin, member, viewer. Every capability that has protected surfaces declares its permissions here. Superseded by access.rebac when that upgrade is selected; the can() interface survives the substitution unchanged, which is why no consumer has to be rewritten.",
-
-  "package": { "name": "@forge/kernel-access" },
-
+  "package": {
+    "name": "@forge/kernel-access"
+  },
   "requires": [
-    { "id": "kernel.identity", "range": "^1.0.0", "reason": "A role is an assignment to a user." }
+    {
+      "id": "kernel.identity",
+      "range": "^1.0.0",
+      "reason": "A role is an assignment to a user."
+    }
   ],
-
   "owns": [
-    { "name": "Role", "kind": "table", "tenant_scoped": true },
-    { "name": "RoleAssignment", "kind": "table", "tenant_scoped": true, "personal_data": true,
-      "privacy": { "export_handler": "exportAssignments", "deletion_strategy": "delete", "deletion_handler": "deleteAssignments" } }
+    {
+      "name": "Role",
+      "kind": "table",
+      "tenant_scoped": true
+    },
+    {
+      "name": "RoleAssignment",
+      "kind": "table",
+      "tenant_scoped": true,
+      "personal_data": true,
+      "privacy": {
+        "export_handler": "exportAssignments",
+        "deletion_strategy": "delete",
+        "deletion_handler": "deleteAssignments"
+      }
+    }
   ],
-
   "publishes": [
-    { "name": "access.role.granted", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "role"],
-        "properties": { "user_id": { "type": "string" }, "role": { "type": "string" }, "scope": { "type": ["string", "null"] } } } },
-    { "name": "access.role.revoked", "contract_version": 1,
-      "payload": { "type": "object", "required": ["user_id", "role"],
-        "properties": { "user_id": { "type": "string" }, "role": { "type": "string" }, "scope": { "type": ["string", "null"] } } } }
+    {
+      "name": "access.role.granted",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "access.role.revoked",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "role"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "scope": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    }
   ],
-
   "consumes": [
-    { "name": "identity.user.created", "contract_versions": [1], "required": true,
-      "reason": "assign the default role to a newly created user", "handler": "assignDefaultRole" }
+    {
+      "name": "identity.user.created",
+      "contract_versions": [
+        1
+      ],
+      "required": true,
+      "reason": "assign the default role to a newly created user",
+      "handler": "assignDefaultRole"
+    }
   ],
-
   "exposes": [
-    { "kind": "interface", "name": "can", "signature": "can(user: User, action: string, resource?: ResourceRef): Promise<boolean>",
-      "description": "The permission check every capability calls. access.rebac must satisfy this exact signature to upgrade this capability." },
-    { "kind": "interface", "name": "RequirePermission", "signature": "RequirePermission(action: string): Guard" },
-    { "kind": "registry", "name": "permissions",
-      "description": "Permission declarations contributed by every capability with protected surfaces." }
+    {
+      "kind": "interface",
+      "name": "can",
+      "signature": "can(user: User, action: string, resource?: ResourceRef): Promise<boolean>",
+      "description": "The permission check every capability calls. access.rebac must satisfy this exact signature to upgrade this capability."
+    },
+    {
+      "kind": "interface",
+      "name": "RequirePermission",
+      "signature": "RequirePermission(action: string): Guard"
+    },
+    {
+      "kind": "registry",
+      "name": "permissions",
+      "description": "Permission declarations contributed by every capability with protected surfaces."
+    }
   ],
-
   "slots": [
-    { "name": "roleDefinitions", "signature": "RoleDefinitionsSlot", "when": "at boot, when the role set is resolved",
-      "description": "Client-specific roles beyond owner, admin, member, viewer." },
-    { "name": "permissionResolver", "signature": "PermissionResolverSlot", "when": "on every can() call not satisfied by a declared role",
-      "description": "Client-specific permission logic." }
+    {
+      "name": "roleDefinitions",
+      "signature": "RoleDefinitionsSlot",
+      "when": "at boot, when the role set is resolved",
+      "description": "Client-specific roles beyond owner, admin, member, viewer."
+    },
+    {
+      "name": "permissionResolver",
+      "signature": "PermissionResolverSlot",
+      "when": "on every can() call not satisfied by a declared role",
+      "description": "Client-specific permission logic."
+    }
   ],
-
   "tests": {
     "smoke": [
-      { "name": "default role on registration", "asserts": "a newly created user receives the configured default role" },
-      { "name": "guard denies without permission", "asserts": "a protected route returns 403 for a user lacking the declared permission" }
+      {
+        "name": "default role on registration",
+        "asserts": "a newly created user receives the configured default role"
+      },
+      {
+        "name": "guard denies without permission",
+        "asserts": "a protected route returns 403 for a user lacking the declared permission"
+      }
     ]
   },
-
   "migrations": [
-    { "id": "20260601_create_kernel_access", "introduced_in": "1.0.0",
+    {
+      "id": "20260601_create_kernel_access",
+      "introduced_in": "1.0.0",
       "up": "migrations/20260601_create_kernel_access.up.sql",
-      "down": "migrations/20260601_create_kernel_access.down.sql" }
+      "down": "migrations/20260601_create_kernel_access.down.sql"
+    }
   ],
-
   "templates": [
-    { "id": "permissions.ts", "version": "1.0.0", "output": "src/generated/kernel.access/permissions.ts", "zone": "managed",
-      "description": "The permission set collected from every capability's registers block in the resolved graph." },
-    { "id": "slots", "version": "1.0.0", "output": "src/slots/kernel.access/", "zone": "seeded" }
+    {
+      "id": "permissions.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.access/permissions.ts",
+      "zone": "managed",
+      "description": "The permission set collected from every capability's registers block in the resolved graph.",
+      "scope": "graph"
+    },
+    {
+      "id": "slots",
+      "version": "1.0.0",
+      "output": "src/slots/kernel.access/",
+      "zone": "seeded"
+    }
   ]
 }

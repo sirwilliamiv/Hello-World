@@ -1212,6 +1212,14 @@
         },
         "description": {
           "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "capability",
+            "graph"
+          ],
+          "default": "capability",
+          "description": "Whose change causes this file to change. 'capability': it changes when THIS capability upgrades, so it counts against the capability's generation budget. 'graph': it is derived from the whole resolved graph and changes when ANY capability in the product changes — the kernel's integration files are almost all of this kind. Graph-scoped output is measured separately, because the budget exists to bound the merge risk of a capability upgrade and that is not the risk these files carry."
         }
       }
     }

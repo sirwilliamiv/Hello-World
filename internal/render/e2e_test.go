@@ -203,7 +203,7 @@ func TestGeneratedCodeStaysWithinTheBudget(t *testing.T) {
 		lines[d.Capability] += bytes.Count(d.Content, []byte("\n"))
 	}
 	for cap, n := range lines {
-		if cap == "<client>" || cap == "<product>" {
+		if cap == "<client>" || cap == "<product>" || cap == "<graph>" {
 			continue
 		}
 		if n > generationBudget {
@@ -261,7 +261,7 @@ func TestCapabilityOutputDoesNotScaleWithClientEntities(t *testing.T) {
 		t.Error("client-derived output should grow with the client's data model")
 	}
 	for cap, before := range a {
-		if cap == "<client>" || cap == "<product>" {
+		if cap == "<client>" || cap == "<product>" || cap == "<graph>" {
 			continue
 		}
 		if grown := c[cap] - before; grown > 50 {

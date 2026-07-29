@@ -10,7 +10,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@forge/kernel-work": "workspace:*"
+    "@forge/kernel-work": "workspace:*",
+    "zod": "3.25.0"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

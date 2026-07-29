@@ -9,8 +9,15 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "files": [
+    "src",
+    "migrations"
+  ],
   "dependencies": {
-    "@forge/kernel-identity": "workspace:*"
+    "@forge/kernel-data": "workspace:*",
+    "@forge/kernel-events": "workspace:*",
+    "@forge/kernel-identity": "workspace:*",
+    "drizzle-orm": "0.44.2"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

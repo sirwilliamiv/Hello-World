@@ -6,41 +6,66 @@
   "kernel_range": "^1.0.0",
   "name": "In-process background work",
   "tier": "kernel",
-  "price": { "model": "included" },
+  "price": {
+    "model": "included"
+  },
   "integration_weight": 0,
   "summary": "Deliberately minimal. Adequate for email sending and light async work. Any client with meaningful volume, long-running work, or a need for retry guarantees requires the ops.queue upgrade. Validation warns when a capability declaring performs_async_work runs on kernel work, and errors for docs.extraction, automation.rules, and every integration capability.",
-
-  "package": { "name": "@forge/kernel-work" },
-
+  "package": {
+    "name": "@forge/kernel-work"
+  },
   "requires": [
-    { "id": "kernel.events", "range": "^1.0.0", "reason": "Job lifecycle is published onto the bus." }
+    {
+      "id": "kernel.events",
+      "range": "^1.0.0",
+      "reason": "Job lifecycle is published onto the bus."
+    }
   ],
-
   "owns": [
-    { "name": "Job", "kind": "table", "tenant_scoped": false,
-      "description": "In-process job record. No durable retry, no dead-letter, no cross-process concurrency control — that is what ops.queue adds." }
+    {
+      "name": "Job",
+      "kind": "table",
+      "tenant_scoped": false,
+      "description": "In-process job record. No durable retry, no dead-letter, no cross-process concurrency control — that is what ops.queue adds."
+    }
   ],
-
   "exposes": [
-    { "kind": "interface", "name": "enqueue", "signature": "enqueue(job: JobSpec): Promise<JobRef>",
-      "description": "ops.queue must satisfy this signature to upgrade this capability." },
-    { "kind": "interface", "name": "schedule", "signature": "schedule(cron: string, job: JobSpec): Promise<JobRef>" }
+    {
+      "kind": "interface",
+      "name": "enqueue",
+      "signature": "enqueue(job: JobSpec): Promise<JobRef>",
+      "description": "ops.queue must satisfy this signature to upgrade this capability."
+    },
+    {
+      "kind": "interface",
+      "name": "schedule",
+      "signature": "schedule(cron: string, job: JobSpec): Promise<JobRef>"
+    }
   ],
-
   "tests": {
     "smoke": [
-      { "name": "enqueued work runs", "asserts": "an enqueued job executes and its completion is observable" }
+      {
+        "name": "enqueued work runs",
+        "asserts": "an enqueued job executes and its completion is observable"
+      }
     ]
   },
-
   "migrations": [
-    { "id": "20260601_create_kernel_work", "introduced_in": "1.0.0",
+    {
+      "id": "20260601_create_kernel_work",
+      "introduced_in": "1.0.0",
       "up": "migrations/20260601_create_kernel_work.up.sql",
-      "down": "migrations/20260601_create_kernel_work.down.sql" }
+      "down": "migrations/20260601_create_kernel_work.down.sql"
+    }
   ],
-
   "templates": [
-    { "id": "jobs.ts", "version": "1.0.0", "output": "src/generated/kernel.work/jobs.ts", "zone": "managed",
-      "description": "Job registrations collected from the resolved graph." }
+    {
+      "id": "jobs.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.work/jobs.ts",
+      "zone": "managed",
+      "description": "Job registrations collected from the resolved graph.",
+      "scope": "graph"
+    }
   ]
 }

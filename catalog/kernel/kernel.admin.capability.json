@@ -6,60 +6,129 @@
   "kernel_range": "^1.0.0",
   "name": "Administrative interface",
   "tier": "kernel",
-  "price": { "model": "included" },
+  "price": {
+    "model": "included"
+  },
   "integration_weight": 0,
   "summary": "Every entity in the system, including manifest-declared client entities, gets an admin surface automatically. This is the largest single reason client-specific entities belong in the manifest rather than in code: declaring one buys admin, audit, search, permissions, and reporting with no further work.",
-
-  "package": { "name": "@forge/kernel-admin" },
-
+  "package": {
+    "name": "@forge/kernel-admin"
+  },
   "requires": [
-    { "id": "kernel.data", "range": "^1.0.0", "reason": "Admin is generated from the entity registry." },
-    { "id": "kernel.access", "range": "^1.0.0", "reason": "Every admin surface is permission-gated." },
-    { "id": "kernel.ui", "range": "^1.0.0", "reason": "Admin composes kernel components and tokens." }
+    {
+      "id": "kernel.data",
+      "range": "^1.0.0",
+      "reason": "Admin is generated from the entity registry."
+    },
+    {
+      "id": "kernel.access",
+      "range": "^1.0.0",
+      "reason": "Every admin surface is permission-gated."
+    },
+    {
+      "id": "kernel.ui",
+      "range": "^1.0.0",
+      "reason": "Admin composes kernel components and tokens."
+    }
   ],
-
   "exposes": [
-    { "kind": "ui_surface", "name": "AdminConsole", "description": "Auto-generated CRUD, search, filter, and export for every registered entity." },
-    { "kind": "registry", "name": "entityDisplay",
-      "description": "Per-entity display configuration contributed by capabilities: column selection, labels, and detail layout." },
-    { "kind": "registry", "name": "bulkActions",
-      "description": "Bulk actions contributed by capabilities and surfaced on the relevant entity list." }
+    {
+      "kind": "ui_surface",
+      "name": "AdminConsole",
+      "description": "Auto-generated CRUD, search, filter, and export for every registered entity."
+    },
+    {
+      "kind": "registry",
+      "name": "entityDisplay",
+      "description": "Per-entity display configuration contributed by capabilities: column selection, labels, and detail layout."
+    },
+    {
+      "kind": "registry",
+      "name": "bulkActions",
+      "description": "Bulk actions contributed by capabilities and surfaced on the relevant entity list."
+    }
   ],
-
   "surfaces": [
-    { "area": "admin", "name": "Admin", "path": "/admin", "permission": "admin.access",
-      "nav": { "label": "Admin", "group": "admin", "order": 10 } }
+    {
+      "area": "admin",
+      "name": "Admin",
+      "path": "/admin",
+      "permission": "admin.access",
+      "nav": {
+        "label": "Admin",
+        "group": "admin",
+        "order": 10
+      }
+    }
   ],
-
   "registers": [
-    { "registry": "kernel.access:permissions",
+    {
+      "registry": "kernel.access:permissions",
       "entries": [
-        { "action": "admin.access", "default_roles": ["owner", "admin"] },
-        { "action": "admin.export", "default_roles": ["owner", "admin"] }
-      ] }
+        {
+          "action": "admin.access",
+          "default_roles": [
+            "owner",
+            "admin"
+          ]
+        },
+        {
+          "action": "admin.export",
+          "default_roles": [
+            "owner",
+            "admin"
+          ]
+        }
+      ]
+    }
   ],
-
   "slots": [
-    { "name": "customAdminView", "signature": "CustomAdminViewSlot", "when": "when an entity's admin view is resolved",
-      "description": "Replaces the generated view for a specific entity with a client-specific one." },
-    { "name": "entityDisplayConfig", "signature": "EntityDisplayConfigSlot", "when": "when admin columns and labels are resolved",
-      "description": "Client-specific column selection, ordering, and labelling." },
-    { "name": "bulkAction", "signature": "BulkActionSlot", "when": "when the bulk action menu is built",
-      "description": "Client-specific bulk operations." }
+    {
+      "name": "customAdminView",
+      "signature": "CustomAdminViewSlot",
+      "when": "when an entity's admin view is resolved",
+      "description": "Replaces the generated view for a specific entity with a client-specific one."
+    },
+    {
+      "name": "entityDisplayConfig",
+      "signature": "EntityDisplayConfigSlot",
+      "when": "when admin columns and labels are resolved",
+      "description": "Client-specific column selection, ordering, and labelling."
+    },
+    {
+      "name": "bulkAction",
+      "signature": "BulkActionSlot",
+      "when": "when the bulk action menu is built",
+      "description": "Client-specific bulk operations."
+    }
   ],
-
   "tests": {
     "smoke": [
-      { "name": "every registered entity has an admin surface", "asserts": "each entity in the registry, including manifest-declared ones, resolves a list and a detail view" },
-      { "name": "admin is permission-gated", "asserts": "a user without admin.access receives 403 on every admin route" }
+      {
+        "name": "every registered entity has an admin surface",
+        "asserts": "each entity in the registry, including manifest-declared ones, resolves a list and a detail view"
+      },
+      {
+        "name": "admin is permission-gated",
+        "asserts": "a user without admin.access receives 403 on every admin route"
+      }
     ]
   },
-
   "migrations": [],
-
   "templates": [
-    { "id": "admin-entities.ts", "version": "1.0.0", "output": "src/generated/kernel.admin/entities.ts", "zone": "managed",
-      "description": "Admin registration for every entity in the resolved graph." },
-    { "id": "slots", "version": "1.0.0", "output": "src/slots/kernel.admin/", "zone": "seeded" }
+    {
+      "id": "admin-entities.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.admin/entities.ts",
+      "zone": "managed",
+      "description": "Admin registration for every entity in the resolved graph.",
+      "scope": "graph"
+    },
+    {
+      "id": "slots",
+      "version": "1.0.0",
+      "output": "src/slots/kernel.admin/",
+      "zone": "seeded"
+    }
   ]
 }

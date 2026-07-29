@@ -30,13 +30,6 @@
       "tenant_scoped": false,
       "listable": false,
       "append_only": true
-    },
-    {
-      "name": "Revision",
-      "kind": "table",
-      "description": "Optimistic-locking revision counter per row.",
-      "tenant_scoped": false,
-      "listable": false
     }
   ],
   "publishes": [
@@ -237,7 +230,37 @@
       "version": "1.0.0",
       "output": "src/generated/kernel.data/entities.ts",
       "zone": "managed",
-      "description": "Entity registrations for capability-owned and manifest-declared entities."
+      "description": "Entity registrations for capability-owned and manifest-declared entities.",
+      "scope": "graph"
+    }
+  ],
+  "extends": [
+    {
+      "target": "owns_data",
+      "fields": [
+        {
+          "name": "created_at",
+          "type": "Date",
+          "nullable": false
+        },
+        {
+          "name": "updated_at",
+          "type": "Date",
+          "nullable": false
+        },
+        {
+          "name": "deleted_at",
+          "type": "Date",
+          "nullable": true,
+          "indexed": true
+        },
+        {
+          "name": "revision",
+          "type": "number",
+          "nullable": false
+        }
+      ],
+      "reason": "Timestamps, soft delete, and the optimistic-locking counter are columns on every persisted entity. A stale revision fails the write rather than silently overwriting; the counter is per row, so it belongs on the row rather than in a side table that would need a join on every read."
     }
   ]
 }

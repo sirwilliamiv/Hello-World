@@ -40,15 +40,16 @@ type Inputs struct {
 // sorted, because Go randomises map iteration and unsorted output would produce
 // a spurious diff on every run.
 type GraphFacts struct {
-	Active        []string
-	Packages      []string
-	Entities      []EntityFact
-	Subscriptions []SubscriptionFact
-	Permissions   []string
-	NavItems      []NavFact
-	Migrations    []MigrationFact
-	EnvVars       []string
-	SupersededBy  map[string]string
+	Active          []string
+	Packages        []string
+	Entities        []EntityFact
+	Subscriptions   []SubscriptionFact
+	Permissions     []PermissionFact
+	PublishedEvents []PublishedEventFact
+	NavItems        []NavFact
+	Migrations      []MigrationFact
+	EnvVars         []string
+	SupersededBy    map[string]string
 }
 
 type EntityFact struct {
@@ -68,6 +69,18 @@ type SubscriptionFact struct {
 	Handler  string
 	Versions []int
 	Package  string
+}
+
+// PermissionFact is one permission contributed by a capability, WITH the roles
+// the specification says should hold it by default.
+//
+// Dropping DefaultRoles was a real bug: every capability declares them per
+// permission, and without them a freshly applied product grants nothing to
+// admin, member, or viewer — only the owner's wildcard works.
+type PermissionFact struct {
+	Action       string
+	DefaultRoles []string
+	Capability   string
 }
 
 type NavFact struct {
@@ -126,6 +139,12 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 				PersonalData: e.PersonalData,
 			})
 		}
+		for _, e := range n.Cap.Publishes {
+			f.PublishedEvents = append(f.PublishedEvents, PublishedEventFact{
+				Name: e.Name, ContractVersion: e.ContractVersion, Publisher: n.Cap.ID,
+				PayloadType: tsTypeFromSchema(e.Payload, ""), PerEntity: e.PerEntity,
+			})
+		}
 		for _, c := range n.Cap.Consumes {
 			if c.Handler == "" {
 				continue
@@ -144,9 +163,19 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 				continue
 			}
 			for _, entry := range r.Entries {
-				if action, ok := entry["action"].(string); ok {
-					f.Permissions = append(f.Permissions, action)
+				action, ok := entry["action"].(string)
+				if !ok {
+					continue
 				}
+				pf := PermissionFact{Action: action, Capability: n.Cap.ID}
+				if roles, ok := entry["default_roles"].([]any); ok {
+					for _, role := range roles {
+						if s, ok := role.(string); ok {
+							pf.DefaultRoles = append(pf.DefaultRoles, s)
+						}
+					}
+				}
+				f.Permissions = append(f.Permissions, pf)
 			}
 		}
 		for _, s := range n.Cap.Surfaces {
@@ -187,8 +216,9 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 	// Sorting is load-bearing, not cosmetic.
 	sort.Strings(f.Active)
 	sort.Strings(f.Packages)
-	sort.Strings(f.Permissions)
-	f.Permissions = dedupe(f.Permissions)
+	sort.Slice(f.PublishedEvents, func(i, j int) bool { return f.PublishedEvents[i].Name < f.PublishedEvents[j].Name })
+	sort.Slice(f.Permissions, func(i, j int) bool { return f.Permissions[i].Action < f.Permissions[j].Action })
+	f.Permissions = dedupePermissions(f.Permissions)
 	sort.Strings(f.EnvVars)
 	f.EnvVars = dedupe(f.EnvVars)
 	sort.Slice(f.Entities, func(i, j int) bool { return f.Entities[i].Name < f.Entities[j].Name })
@@ -255,8 +285,15 @@ func (r *Renderer) Capability(m *manifest.Manifest, env string, n *resolve.Node,
 		if state.Zone(t.Zone) == state.ZoneManaged {
 			content = append(header(n.Cap, t), body...)
 		}
+		// Graph-scoped output is attributed to <graph>: it changes when any
+		// capability in the product changes, not when this one upgrades, so it
+		// does not carry the merge risk the per-capability budget bounds.
+		attributed := n.Cap.ID
+		if t.Scope == "graph" {
+			attributed = "<graph>"
+		}
 		out = append(out, Rendered{
-			Path: t.Output, Zone: state.Zone(t.Zone), Capability: n.Cap.ID,
+			Path: t.Output, Zone: state.Zone(t.Zone), Capability: attributed,
 			Template: t.ID, TemplateVersion: t.Version, Content: content, InputsHash: hash,
 		})
 	}
@@ -391,6 +428,22 @@ func packageOf(c *spec.Capability) string {
 		return c.Package.Name
 	}
 	return "@forge/" + strings.ReplaceAll(c.ID, ".", "-")
+}
+
+// dedupePermissions keeps one entry per action. Two capabilities declaring the
+// same permission is a catalog problem, not something to silently merge, so the
+// first wins and validation is where the collision should surface.
+func dedupePermissions(in []PermissionFact) []PermissionFact {
+	if len(in) == 0 {
+		return in
+	}
+	out := in[:1]
+	for _, p := range in[1:] {
+		if p.Action != out[len(out)-1].Action {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func dedupe(in []string) []string {
