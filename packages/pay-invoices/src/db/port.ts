@@ -1,7 +1,5 @@
 import type { InvoiceStatus } from '../types.js'
 
-export type { InvoiceStatus }
-
 /**
  * The narrow persistence port for pay.invoices.
  *

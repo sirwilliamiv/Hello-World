@@ -4,3 +4,7 @@ node_modules/
 .next/
 __pycache__/
 /forge
+
+# Typecheck scaffolding created by package work
+.tmp-stubs/
+tsconfig.check.json

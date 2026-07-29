@@ -84,9 +84,6 @@ export const thumbnailsTable = pgTable(
   (t) => [uniqueIndex('data_files_thumbnail_kind_idx').on(t.fileId, t.kind)],
 )
 
-/** Kept for the admin surface: a quarantined file is visible but never retrievable. */
-export const isRetrievable = (status: string): boolean => status === 'available'
-
 export const dataFilesSchema = {
   filesTable,
   fileVersionsTable,

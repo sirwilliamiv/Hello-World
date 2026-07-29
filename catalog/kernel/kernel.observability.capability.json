@@ -48,6 +48,16 @@
       "kind": "route",
       "name": "metrics",
       "path": "/metrics"
+    },
+    {
+      "kind": "registry",
+      "name": "healthChecks",
+      "description": "Liveness probes contributed by whichever capabilities own external resources. This capability declares no dependencies on purpose — an observability layer that imported the data layer and the queue would be unable to report on a product that lacks either. The dependency is inverted: contributors register, and a required check that nobody registered reports unknown and fails the probe rather than passing silently."
+    },
+    {
+      "kind": "interface",
+      "name": "registerHealthCheck",
+      "signature": "registerHealthCheck(check: { name: string; check: () => Promise<HealthStatus> }): void"
     }
   ],
   "external": [

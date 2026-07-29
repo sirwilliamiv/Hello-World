@@ -62,6 +62,12 @@
       "kind": "registry",
       "name": "dashboardWidgets",
       "description": "Widgets contributed to the default dashboard."
+    },
+    {
+      "kind": "interface",
+      "name": "setNavigationPermissionResolver",
+      "signature": "setNavigationPermissionResolver(resolve: (permission: string) => Promise<boolean>): void",
+      "description": "Installed by whichever access capability is active. kernel.ui declares no dependency on access so that a nav entry's `permission` can be honoured without the shell importing an access layer it may not have. Unresolved permissions fail closed — the entry is hidden."
     }
   ],
   "slots": [

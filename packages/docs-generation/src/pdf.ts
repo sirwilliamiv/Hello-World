@@ -59,9 +59,10 @@ async function launch(): Promise<Browser> {
     browser = await playwright.chromium.launch({
       headless: true,
       args: [
-        // Rendering flags that remove machine-to-machine variation. They do not make
-        // two different Chromium builds agree — see the note in the README of this
-        // package — but they remove the variation within one.
+        // Rendering flags that remove run-to-run variation. They do not make two
+        // *different* Chromium builds agree — the catalog snapshot pins the browser
+        // version for the same reason it pins Prettier (ARCHITECTURE.md section 10) —
+        // but with one build they make the output stable.
         '--font-render-hinting=none',
         '--disable-lcd-text',
         '--force-color-profile=srgb',

@@ -262,5 +262,17 @@
       ],
       "reason": "Timestamps, soft delete, and the optimistic-locking counter are columns on every persisted entity. A stale revision fails the write rather than silently overwriting; the counter is per row, so it belongs on the row rather than in a side table that would need a join on every read."
     }
+  ],
+  "registers": [
+    {
+      "registry": "kernel.observability:healthChecks",
+      "entries": [
+        {
+          "name": "database",
+          "required": true,
+          "description": "Database reachability, reported by the capability that owns the connection."
+        }
+      ]
+    }
   ]
 }

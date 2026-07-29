@@ -165,5 +165,17 @@
         }
       }
     }
+  ],
+  "registers": [
+    {
+      "registry": "kernel.observability:healthChecks",
+      "entries": [
+        {
+          "name": "queue",
+          "required": true,
+          "description": "Work backend reachability. ops.queue replaces this contribution when it supersedes this capability."
+        }
+      ]
+    }
   ]
 }

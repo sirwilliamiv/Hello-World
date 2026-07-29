@@ -14,7 +14,6 @@ import type {
   EventEnvelope,
   Invoice,
   InvoiceLineInput,
-  InvoiceStatus,
   Receipt,
 } from './types.js'
 

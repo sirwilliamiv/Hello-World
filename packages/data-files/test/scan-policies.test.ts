@@ -3,7 +3,7 @@
  *   "the process restarts mid-scan → the scan job resumes and the file does not
  *    remain permanently quarantined."
  */
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { completeUpload, serveLocalObject, signedUrl, upload } from '../src/index.js'
 import { setupFiles, type Harness } from './harness.js'
 

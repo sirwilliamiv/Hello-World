@@ -12,6 +12,7 @@
 package boundary
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -108,7 +109,7 @@ func Check(packagesRoot string, cat *catalog.Catalog) (*diag.Set, error) {
 	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].capability.ID < pkgs[j].capability.ID })
 
 	for _, p := range pkgs {
-		if err := checkPackage(p, byPackage, tableOwner, ds); err != nil {
+		if err := checkPackage(p, byPackage, tableOwner, packagesRoot, ds); err != nil {
 			return ds, err
 		}
 	}
@@ -153,7 +154,7 @@ func ownedTables(c *spec.Capability) map[string]bool {
 	return out
 }
 
-func checkPackage(p pkgInfo, byPackage map[string]*spec.Capability, tableOwner map[string]string, ds *diag.Set) error {
+func checkPackage(p pkgInfo, byPackage map[string]*spec.Capability, tableOwner map[string]string, packagesRoot string, ds *diag.Set) error {
 	srcDir := filepath.Join(p.dir, "src")
 	if _, err := os.Stat(srcDir); os.IsNotExist(err) {
 		return nil // not implemented yet
@@ -197,7 +198,7 @@ func checkPackage(p pkgInfo, byPackage map[string]*spec.Capability, tableOwner m
 				continue
 			}
 
-			if target != root {
+			if target != root && !isDeclaredEntryPoint(root, target, packagesRoot) {
 				owner := "another capability"
 				if c, ok := byPackage[root]; ok {
 					owner = c.ID
@@ -250,6 +251,32 @@ func checkPackage(p pkgInfo, byPackage map[string]*spec.Capability, tableOwner m
 		}
 		return nil
 	})
+}
+
+// isDeclaredEntryPoint reports whether a subpath is a published entry point of
+// the target package.
+//
+// A subpath listed in package.json `exports` IS part of the public contract —
+// that is precisely what the field means. Treating every subpath as a boundary
+// violation would have forced kernel.admin to pull the whole React component
+// library into server-side resolution just to reach a pure data helper. What
+// the rule must actually forbid is reaching into paths the owner never
+// published.
+func isDeclaredEntryPoint(root, target, packagesRoot string) bool {
+	dir := filepath.Join(packagesRoot, strings.TrimPrefix(root, "@forge/"))
+	b, err := os.ReadFile(filepath.Join(dir, "package.json"))
+	if err != nil {
+		return false
+	}
+	var pkg struct {
+		Exports map[string]any `json:"exports"`
+	}
+	if json.Unmarshal(b, &pkg) != nil {
+		return false
+	}
+	sub := "." + strings.TrimPrefix(target, root)
+	_, ok := pkg.Exports[sub]
+	return ok
 }
 
 // isKernelPackage reports whether a package belongs to a kernel capability.
