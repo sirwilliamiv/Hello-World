@@ -9,8 +9,27 @@
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
-  experimental: { instrumentationHook: true },
+  // instrumentationHook was experimental in Next 14 and is stable in 15 —
+  // src/instrumentation.ts is picked up automatically, and naming the flag is
+  // now a type error.
+
+  // Capability packages are consumed as TypeScript source rather than as build
+  // output, so Next compiles them directly. That is deliberate: a build step per
+  // package is fifteen more things to keep in sync, and it would put a compiled
+  // artifact between a capability's source and the client's stack traces.
   transpilePackages: ["@forge/data-files", "@forge/docs-generation", "@forge/kernel-access", "@forge/kernel-admin", "@forge/kernel-audit", "@forge/kernel-data", "@forge/kernel-events", "@forge/kernel-identity", "@forge/kernel-mail", "@forge/kernel-money", "@forge/kernel-observability", "@forge/kernel-ui", "@forge/ops-queue", "@forge/pay-card", "@forge/pay-invoices"],
+
+  webpack: (config) => {
+    // ESM source writes `./metrics.js` for a file on disk named `metrics.ts`.
+    // tsc resolves that under moduleResolution: bundler; webpack does not
+    // unless told, so every capability package would fail to resolve its own
+    // internal imports.
+    config.resolve.extensionAlias = {
+      '.js': ['.ts', '.tsx', '.js'],
+      '.jsx': ['.tsx', '.jsx'],
+    }
+    return config
+  },
 }
 
 export default config

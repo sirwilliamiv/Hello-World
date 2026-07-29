@@ -312,6 +312,16 @@ The slot's *type* lives in the npm package and therefore upgrades with the packa
 major version changes a slot signature, the client's implementation fails to compile —
 which is exactly the outcome we want, because it is loud, local, and fixable.
 
+**Slot contexts must offer `proceed()`.** The seeded stub Forge writes is
+`return ctx.proceed()` — "carry on as you would have" — because that is the only
+default that is correct for every slot regardless of what it does. That makes
+`proceed()` part of the slot contract rather than one capability's convention:
+31 slots are declared across the catalog and only 3 capabilities' contexts
+currently offer it, so the generated stubs do not compile for the rest. Either
+every slot context provides it, or the specification must let a capability
+declare its own default body. The first is better — a uniform "do nothing"
+verb is what makes a slot a slot rather than an arbitrary callback.
+
 Slot coverage is a design obligation on capability authors, not a nicety. **A capability
 whose slots do not cover the customisation clients actually request will have its managed
 files edited, and the fleet will fragment there.** Slot adequacy is reviewed at

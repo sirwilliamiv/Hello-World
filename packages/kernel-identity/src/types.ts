@@ -78,12 +78,19 @@ export interface PasswordReset extends BaseRow {
  * in terms of it.
  */
 export interface RouteContext {
-  params?:
-    | Record<string, string | string[] | undefined>
-    | Promise<Record<string, string | string[] | undefined>>
+  // A Promise, and not optional. Next 15 made dynamic route params async and
+  // types a route export's second argument as `{ params: Promise<any> }`. A
+  // union with the synchronous form, or an optional marker, is not assignable
+  // to that — so the generated `export const GET = handler` fails the framework's
+  // own route validation even though the code is correct.
+  params: Promise<Record<string, string | string[] | undefined>>
 }
 
-export type RouteHandler = (request: Request, context?: RouteContext) => Promise<Response>
+// Context is REQUIRED, not optional. Next.js types a route export as
+// (request, context: RouteContext), and an optional second parameter is not
+// assignable to that — `RouteContext | undefined` is not `RouteContext`. A
+// handler that does not need the context simply ignores the argument.
+export type RouteHandler = (request: Request, context: RouteContext) => Promise<Response>
 
 /** Everything an authenticated request knows about its caller. */
 export interface Authentication {

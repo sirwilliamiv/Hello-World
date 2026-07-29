@@ -333,6 +333,31 @@ func (r *Renderer) slotStubs(c *spec.Capability, t spec.Template) ([]Rendered, e
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
+
+	// The generated wiring does `import * as slots from '@/slots/<capability>'`,
+	// so the directory needs a barrel. It is MANAGED rather than seeded: its
+	// contents are derived from the capability's declared slots and must change
+	// when the capability adds one. The stubs it re-exports stay seeded and
+	// client-owned — only the index is Forge's.
+	if len(c.Slots) > 0 {
+		var b bytes.Buffer
+		fmt.Fprintf(&b, "// Re-exports the slot implementations for %s.\n", c.ID)
+		fmt.Fprintf(&b, "// The stubs themselves are yours; this index is generated from the\n")
+		fmt.Fprintf(&b, "// capability's declared slots and updates when it declares a new one.\n\n")
+		names := make([]string, 0, len(c.Slots))
+		for _, sl := range c.Slots {
+			names = append(names, sl.Name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			fmt.Fprintf(&b, "export { %s } from './%s.js'\n", name, name)
+		}
+		out = append(out, Rendered{
+			Path: filepath.Join(t.Output, "index.ts"), Zone: state.ZoneManaged,
+			Capability: c.ID, Template: t.ID + ":index", TemplateVersion: t.Version,
+			Content: append(header(c, t), b.Bytes()...),
+		})
+	}
 	return out, nil
 }
 

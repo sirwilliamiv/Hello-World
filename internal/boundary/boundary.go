@@ -27,10 +27,11 @@ import (
 )
 
 const (
-	CheckUndeclared = "FORGE030"
-	CheckDeepImport = "FORGE031"
-	CheckSelfImport = "FORGE032"
-	CheckRawSQL     = "FORGE033"
+	CheckUndeclared     = "FORGE030"
+	CheckDeepImport     = "FORGE031"
+	CheckSelfImport     = "FORGE032"
+	CheckRawSQL         = "FORGE033"
+	CheckMissingPackage = "FORGE034"
 )
 
 // importRe matches ES import and re-export specifiers, plus dynamic import().
@@ -74,6 +75,26 @@ func Check(packagesRoot string, cat *catalog.Catalog) (*diag.Set, error) {
 			if e.Kind == "table" {
 				tableOwner[snake(e.Name)] = c.ID
 			}
+		}
+	}
+
+	// Every capability declaring a package must have one. A capability whose
+	// package is missing still resolves into the graph and still lands in the
+	// generated app's dependency list, so the failure surfaces as an install
+	// error in a CLIENT repository rather than here — which is the worst place
+	// for it. kernel.audit was missing for exactly this reason and was only
+	// found when the reference app failed to install.
+	for _, id := range cat.IDs() {
+		c, _ := cat.Get(id)
+		if c.Package == nil || c.Package.Name == "" {
+			continue
+		}
+		dir := filepath.Join(packagesRoot, strings.TrimPrefix(c.Package.Name, "@forge/"))
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			ds.Errorf(CheckMissingPackage, c.SourceFile, "package.name",
+				fmt.Sprintf("create %s, or remove the package declaration from %s", dir, c.ID),
+				"%s declares package %q, which does not exist in the workspace; every product resolving %s would fail to install",
+				c.ID, c.Package.Name, c.ID)
 		}
 	}
 

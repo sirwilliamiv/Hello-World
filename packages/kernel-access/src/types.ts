@@ -38,6 +38,13 @@ export interface PermissionDeclaration {
    * contributing capability's `registers` entry.
    */
   defaultRoles?: RoleName[]
+  /**
+   * The capability that contributed this permission. Carried through from the
+   * resolved graph so a permission can be traced to its source — which matters
+   * when an admin is looking at a permission list assembled from a dozen
+   * capabilities and needs to know why a given action exists at all.
+   */
+  owner?: string
 }
 
 /**

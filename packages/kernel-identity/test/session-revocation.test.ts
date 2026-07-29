@@ -62,11 +62,11 @@ describe('session revocation is immediate', () => {
     const request = (): Request =>
       new Request('https://acme.example.com/api/private', { headers: { cookie } })
 
-    expect((await guarded(request())).status).toBe(200)
+    expect((await guarded(request(), { params: Promise.resolve({}) })).status).toBe(200)
 
     await endSession(sessionId, 'revoked_by_admin')
 
-    const denied = await guarded(request())
+    const denied = await guarded(request(), { params: Promise.resolve({}) })
     expect(denied.status).toBe(401)
     expect(await denied.json()).toEqual({ error: 'not_authenticated' })
   })

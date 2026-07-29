@@ -76,7 +76,7 @@ describe('guard denies without permission', () => {
     const { cookie } = await signIn('member@example.com') // gets the default role, member
 
     const guarded = RequirePermission('payment.refund')(protectedRoute)
-    const response = await guarded(request(cookie))
+    const response = await guarded(request(cookie), { params: Promise.resolve({}) })
 
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ error: 'forbidden', action: 'payment.refund' })
@@ -84,7 +84,7 @@ describe('guard denies without permission', () => {
 
   it('returns 401 when no session backs the request', async () => {
     const guarded = RequirePermission('payment.refund')(protectedRoute)
-    const response = await guarded(request())
+    const response = await guarded(request(), { params: Promise.resolve({}) })
 
     expect(response.status).toBe(401)
     expect(await response.json()).toEqual({ error: 'not_authenticated' })
@@ -95,7 +95,7 @@ describe('guard denies without permission', () => {
     await grantRole(userId, 'owner')
 
     const guarded = RequirePermission('payment.refund')(protectedRoute)
-    const response = await guarded(request(cookie))
+    const response = await guarded(request(cookie), { params: Promise.resolve({}) })
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ refunded: true })
@@ -106,13 +106,13 @@ describe('guard denies without permission', () => {
     await grantRole(userId, 'owner')
 
     const guarded = RequirePermission('payment.refund')(protectedRoute)
-    expect((await guarded(request(cookie))).status).toBe(200)
+    expect((await guarded(request(cookie), { params: Promise.resolve({}) })).status).toBe(200)
 
     const { revokeRole } = await import('../src/assignments.js')
     await revokeRole(userId, 'owner')
 
     // Same session, same cookie: authorisation is re-evaluated per request.
-    expect((await guarded(request(cookie))).status).toBe(403)
+    expect((await guarded(request(cookie), { params: Promise.resolve({}) })).status).toBe(403)
   })
 
   it('resolves the resource from the request when given a resolver', async () => {
@@ -124,14 +124,14 @@ describe('guard denies without permission', () => {
       scope: 'org_b',
     }))(protectedRoute)
 
-    expect((await guarded(request(cookie))).status).toBe(403)
+    expect((await guarded(request(cookie), { params: Promise.resolve({}) })).status).toBe(403)
 
     const inScope = RequirePermission('payment.refund', () => ({
       type: 'Payment',
       scope: 'org_a',
     }))(protectedRoute)
 
-    expect((await inScope(request(cookie))).status).toBe(200)
+    expect((await inScope(request(cookie), { params: Promise.resolve({}) })).status).toBe(200)
   })
 
   it('applies the permissionResolver slot to a guarded route', async () => {
@@ -141,6 +141,6 @@ describe('guard denies without permission', () => {
     })
 
     const guarded = RequirePermission('payment.refund')(protectedRoute)
-    expect((await guarded(request(cookie))).status).toBe(200)
+    expect((await guarded(request(cookie), { params: Promise.resolve({}) })).status).toBe(200)
   })
 })

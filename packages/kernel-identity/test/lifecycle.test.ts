@@ -55,7 +55,8 @@ afterEach(() => {
 
 describe('register, verify, log in, log out', () => {
   it('runs the full credential lifecycle', async () => {
-    const handler = authHandler()
+    const raw = authHandler()
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
 
     // ── register ────────────────────────────────────────────────────────────
     const registered = await handler(post('register', { email: EMAIL, password: PASSWORD }))
@@ -108,7 +109,8 @@ describe('register, verify, log in, log out', () => {
   })
 
   it('publishes identity.login.failed and never distinguishes the failure', async () => {
-    const handler = authHandler()
+    const raw = authHandler()
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
     await handler(post('register', { email: EMAIL, password: PASSWORD }))
 
     const unknown = await handler(post('login', { email: 'nobody@example.com', password: PASSWORD }))
@@ -121,7 +123,8 @@ describe('register, verify, log in, log out', () => {
   })
 
   it('rejects a duplicate email and a password below the floor policy', async () => {
-    const handler = authHandler()
+    const raw = authHandler()
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
     await handler(post('register', { email: EMAIL, password: PASSWORD }))
 
     const duplicate = await handler(post('register', { email: ' ADA@example.com ', password: PASSWORD }))
@@ -132,7 +135,8 @@ describe('register, verify, log in, log out', () => {
   })
 
   it('resets a password by token and revokes every existing session', async () => {
-    const handler = authHandler()
+    const raw = authHandler()
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
     const registered = await handler(post('register', { email: EMAIL, password: PASSWORD }))
     const { verification_token } = (await registered.json()) as { verification_token: string }
     await handler(post('verify-email', { token: verification_token }))
@@ -158,7 +162,8 @@ describe('register, verify, log in, log out', () => {
   })
 
   it('does not reveal whether an address has an account', async () => {
-    const handler = authHandler()
+    const raw = authHandler()
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
     const response = await handler(post('password/forgot', { email: 'nobody@example.com' }))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ ok: true })
@@ -176,7 +181,8 @@ describe('slots', () => {
       ctx.password.includes('!') ? { ok: true } : { ok: false, reason: 'Needs a bang.' }
     const postLoginRedirect: PostLoginRedirectSlot = () => '/dashboard'
 
-    const handler = authHandler({ slots: { onRegistration, passwordPolicy, postLoginRedirect } })
+    const raw = authHandler({ slots: { onRegistration, passwordPolicy, postLoginRedirect } })
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
 
     const rejected = await handler(post('register', { email: EMAIL, password: PASSWORD }))
     expect(rejected.status).toBe(422)
@@ -197,7 +203,8 @@ describe('slots', () => {
   it('applies the package floor policy before any client slot', async () => {
     // A slot that approves everything still cannot approve a 5-character password.
     const passwordPolicy: PasswordPolicySlot = () => ({ ok: true })
-    const handler = authHandler({ slots: { passwordPolicy } })
+    const raw = authHandler({ slots: { passwordPolicy } })
+    const handler = (request: Request) => raw(request, { params: Promise.resolve({}) })
     const response = await handler(post('register', { email: EMAIL, password: 'short' }))
     expect(response.status).toBe(422)
   })

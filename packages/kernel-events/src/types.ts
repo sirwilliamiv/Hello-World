@@ -72,9 +72,13 @@ export interface EventEnvelope<TPayload = unknown> {
 /** Alias matching the name used in the capability specification's signatures. */
 export type { EventEnvelope as Event }
 
+// The return value is deliberately unconstrained: the bus never consumes it.
+// Typing it as void forces every handler that happens to return something --
+// docs.generation's renderInvoice returns the document it produced -- to be
+// wrapped at the subscription site, which the generated wiring cannot do.
 export type EventHandler<TPayload = unknown> = (
   event: EventEnvelope<TPayload>,
-) => Promise<void> | void
+) => unknown
 
 export interface SubscribeOptions {
   /** Identifies the subscriber in dead letters and logs, e.g. 'pay.invoices'. */

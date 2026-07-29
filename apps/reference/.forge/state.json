@@ -2,7 +2,7 @@
   "state_version": 1,
   "workspace": "reference/development",
   "forge_version": "0.1.0",
-  "serial": 1,
+  "serial": 4,
   "manifest_hash": "sha256:339ec058da5fd2fc58ee7c0d784a33b959c0e13d0a148d5a2b68aacca46718ca",
   "catalog_snapshot": "2026-07-15",
   "lock": {
@@ -71,25 +71,34 @@
       "\u003cproduct\u003e:tsconfig.json": "1.0.0",
       "data.files:config.ts": "1.0.0",
       "data.files:slots": "1.0.0",
+      "data.files:slots:index": "1.0.0",
       "docs.generation:config.ts": "1.0.0",
       "docs.generation:slots": "1.0.0",
+      "docs.generation:slots:index": "1.0.0",
       "kernel.access:slots": "1.0.0",
+      "kernel.access:slots:index": "1.0.0",
       "kernel.admin:slots": "1.0.0",
+      "kernel.admin:slots:index": "1.0.0",
       "kernel.identity:auth-routes.ts": "1.0.0",
       "kernel.identity:slots": "1.0.0",
+      "kernel.identity:slots:index": "1.0.0",
       "kernel.mail:mail-config.ts": "1.0.0",
       "kernel.money:currencies.ts": "1.0.0",
       "kernel.observability:instrumentation.ts": "1.0.0",
       "kernel.ui:slots": "1.0.0",
+      "kernel.ui:slots:index": "1.0.0",
       "kernel.ui:tokens.css": "1.0.0",
       "ops.queue:config.ts": "1.0.0",
       "ops.queue:slots": "1.0.0",
+      "ops.queue:slots:index": "1.0.0",
       "ops.queue:worker.ts": "1.0.0",
       "pay.card:config.ts": "1.0.0",
       "pay.card:slots": "1.0.0",
+      "pay.card:slots:index": "1.0.0",
       "pay.card:webhook-route.ts": "1.0.0",
       "pay.invoices:config.ts": "1.0.0",
-      "pay.invoices:slots": "1.0.0"
+      "pay.invoices:slots": "1.0.0",
+      "pay.invoices:slots:index": "1.0.0"
     }
   },
   "files": [
@@ -135,7 +144,7 @@
       "capability": "\u003cproduct\u003e",
       "template": "next.config.ts",
       "template_version": "1.0.0",
-      "generated_hash": "sha256:4d166751f9770bbc0f2c795ace0345ce9bb719c646324d36bdc4d8b7985fff3d",
+      "generated_hash": "sha256:c3b4f12b082b7e93d95140d60bf80ba6191a36551f1393609f9bfbbb27a997f7",
       "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
     },
     {
@@ -355,6 +364,15 @@
       "seeded_at": "1.0.0"
     },
     {
+      "path": "src/slots/data.files/index.ts",
+      "zone": "managed",
+      "capability": "data.files",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:73fe4ecba501619a95317a9bf997892782b2345149ce8749055fa227627334de",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9"
+    },
+    {
       "path": "src/slots/data.files/processingPipeline.ts",
       "zone": "seeded",
       "capability": "data.files",
@@ -391,6 +409,15 @@
       "seeded_at": "1.0.0"
     },
     {
+      "path": "src/slots/docs.generation/index.ts",
+      "zone": "managed",
+      "capability": "docs.generation",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:83badf657a0f78c1c9968c7f67a95492f2fc9ef0f336405e03b7c02fddb0f762",
+      "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305"
+    },
+    {
       "path": "src/slots/docs.generation/outputFormats.ts",
       "zone": "seeded",
       "capability": "docs.generation",
@@ -407,6 +434,15 @@
       "template_version": "1.0.0",
       "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305",
       "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.access/index.ts",
+      "zone": "managed",
+      "capability": "kernel.access",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:2fde180fa43f75cc62850ce2a3e1980dcc9ab44da7bb2bd6c784d3f36bb7938b",
+      "rendered_inputs_hash": "sha256:adf90ab2b5d56935c1cb84088ee7aa3c47e0cd25b54981909310485c1f5155e2"
     },
     {
       "path": "src/slots/kernel.access/permissionResolver.ts",
@@ -454,6 +490,24 @@
       "seeded_at": "1.0.0"
     },
     {
+      "path": "src/slots/kernel.admin/index.ts",
+      "zone": "managed",
+      "capability": "kernel.admin",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:5dbcfedd5e1a83ec567b23fba05bac50de2839a9b8f179c45535fbdc7a57a0aa",
+      "rendered_inputs_hash": "sha256:7aeab5374443aa42d26e834b264d1a081dd5a33c03cc96344ea1d77c14b43973"
+    },
+    {
+      "path": "src/slots/kernel.identity/index.ts",
+      "zone": "managed",
+      "capability": "kernel.identity",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:e1aae580c04be65e6a103f1f9bba2fb7fd41b1abb97c80f63a18e860e60a2fa2",
+      "rendered_inputs_hash": "sha256:d448a661b3979968846e33d09ed858d01776eb05777108c44f92001503d5bcf6"
+    },
+    {
       "path": "src/slots/kernel.identity/onRegistration.ts",
       "zone": "seeded",
       "capability": "kernel.identity",
@@ -488,6 +542,15 @@
       "template_version": "1.0.0",
       "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d",
       "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.ui/index.ts",
+      "zone": "managed",
+      "capability": "kernel.ui",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:d139b86438ba250ef8cdfde8446999da9323a94704c1aa1666f85369c9c03224",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d"
     },
     {
       "path": "src/slots/kernel.ui/logo.ts",
@@ -526,6 +589,15 @@
       "seeded_at": "1.0.0"
     },
     {
+      "path": "src/slots/ops.queue/index.ts",
+      "zone": "managed",
+      "capability": "ops.queue",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:232c862dd0dfa5b28ca42dac811d3a601fd5b028cbcb61a6a1bfbf72cd1262f6",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283"
+    },
+    {
       "path": "src/slots/ops.queue/priorityRules.ts",
       "zone": "seeded",
       "capability": "ops.queue",
@@ -562,6 +634,15 @@
       "seeded_at": "1.0.0"
     },
     {
+      "path": "src/slots/pay.card/index.ts",
+      "zone": "managed",
+      "capability": "pay.card",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:44c1674d0de28347dc2b1df76ea36b1101a1a92d4572e826e5f38243c662b791",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30"
+    },
+    {
       "path": "src/slots/pay.card/receiptCustomization.ts",
       "zone": "seeded",
       "capability": "pay.card",
@@ -569,6 +650,15 @@
       "template_version": "1.0.0",
       "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30",
       "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.invoices/index.ts",
+      "zone": "managed",
+      "capability": "pay.invoices",
+      "template": "slots:index",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:bdea850365fd15d053c8854b36f176c4d2e8e037cb1fc98e38ec31f33be0297c",
+      "rendered_inputs_hash": "sha256:330eacec988c172bcb4b03b7a054769deeca1577d87b599a9602ce75b0614cbb"
     },
     {
       "path": "src/slots/pay.invoices/lineItemFormatting.ts",
