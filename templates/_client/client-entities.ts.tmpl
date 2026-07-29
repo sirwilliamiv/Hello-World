@@ -1,0 +1,17 @@
+import { registerEntity } from '@forge/kernel-data'
+
+// Entities declared in the manifest. Declaring one here is what buys admin
+// CRUD, audit, search, permissions, and reporting with no further work.
+{{- range .Graph.Entities }}{{ if .Client }}
+registerEntity({
+  name: {{ .Name | quote }},
+  owner: '<client>',
+  tenantScoped: {{ .TenantScoped }},
+  personalData: {{ .PersonalData }},
+  fields: [
+{{- range .Fields }}
+    { name: {{ .Name | quote }}, type: {{ .Type | quote }}, required: {{ .Required }} },
+{{- end }}
+  ],
+})
+{{- end }}{{ end }}

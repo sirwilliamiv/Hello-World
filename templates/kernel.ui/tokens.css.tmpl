@@ -1,0 +1,7 @@
+/* Branding a client is a token change and nothing else. This file is the
+   entire visual surface — capabilities never ship their own styles. */
+:root {
+{{- if .Branding }}{{ range $k, $v := .Branding.Tokens }}
+  --{{ $k | kebab }}: {{ $v }};
+{{- end }}{{ end }}
+}

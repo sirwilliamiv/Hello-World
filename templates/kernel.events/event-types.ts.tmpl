@@ -1,0 +1,12 @@
+// Payload types compiled from the resolved `publishes` schemas, so a contract
+// violation is a build error rather than a runtime surprise.
+export type ResolvedEvent =
+{{- range .Graph.Subscriptions }}
+  | {{ .Event | quote }}
+{{- end }}
+
+export const EVENT_CONTRACT_VERSIONS = {
+{{- range .Graph.Subscriptions }}
+  {{ .Event | quote }}: [{{ range $i, $v := .Versions }}{{ if $i }}, {{ end }}{{ $v }}{{ end }}],
+{{- end }}
+} as const

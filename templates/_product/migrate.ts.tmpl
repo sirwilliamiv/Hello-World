@@ -1,0 +1,12 @@
+import { runMigrations } from '@forge/kernel-data'
+
+// Ordered by migration id, which is date-prefixed and immutable once published.
+// Every migration ships a rollback; publication fails without one.
+const migrations = [
+{{- range .Graph.Migrations }}
+  { capability: {{ .Capability | quote }}, id: {{ .ID | quote }}, up: {{ .Up | quote }}, down: {{ .Down | quote }} },
+{{- end }}
+  { capability: '<client>', id: '0001_client_entities', up: 'migrations/client/0001_client_entities.sql', down: '' },
+]
+
+void runMigrations(migrations)

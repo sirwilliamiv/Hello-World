@@ -15,12 +15,15 @@ previous client. Two numbers define success:
 
 ---
 
-## Status: Phase 1 in progress
+## Status: Phase 1, engine complete
 
-Phase 0 (architecture, schemas, kernel) is complete and its six open questions are
-[decided](ARCHITECTURE.md#14-decisions-taken-at-review). Phase 1 has a working engine
-core: the resolution pipeline through `validate`, with `catalog`, `graph`, and `quote`
-on top. Code generation and `plan`/`apply` are next.
+An empty directory to a rendered client application in two commands. The resolution
+pipeline, plan/apply lifecycle, state, drift detection, and per-file ejection all work;
+applying twice is a verified no-op and rendering is byte-identical across runs.
+
+The `@forge/*` runtime packages that the generated wiring imports are **not implemented
+yet**, so the generated app does not boot. That is the remaining Phase 1 work and it is
+ordinary application development against interfaces the specifications already pin down.
 
 | Artifact | Path |
 |---|---|
@@ -53,19 +56,39 @@ Decided at kickoff. Rationale and reversal cost in [`ARCHITECTURE.md` §0](ARCHI
 ```
 go build -o forge ./cmd/forge
 
-./forge catalog                                   # browse the catalog
-./forge catalog show pay.card                     # full specification
-./forge graph -f examples/phase1/forge.yaml       # resolved dependency graph
-./forge validate -f examples/phase1/forge.yaml    # every check, in one pass
-./forge quote -f examples/phase1/forge.yaml       # priced proposal
+# Empty directory to a rendered application, in two commands.
+mkdir /tmp/acme
+./forge init --target-dir /tmp/acme --product acme --client "Acme LLC" \
+             --capabilities pay.card,pay.invoices
+./forge apply -f /tmp/acme/forge.yaml --target-dir /tmp/acme
+
+# Then, in any order:
+./forge plan  -f /tmp/acme/forge.yaml --target-dir /tmp/acme   # the diff, mutates nothing
+./forge drift -f /tmp/acme/forge.yaml --target-dir /tmp/acme   # hand-edits to generated files
+./forge graph -f /tmp/acme/forge.yaml                          # the resolved graph
+./forge quote -f /tmp/acme/forge.yaml                          # priced proposal
+./forge catalog show pay.card                                  # full specification
 ```
 
-`graph` on the Phase 1 product shows the resolver doing the work that matters: two
-capabilities are named in the manifest, three more (`docs.generation`, `data.files`,
-`ops.queue`) are pulled in transitively with the chain that caused each addition, and
-`ops.queue` supersedes the kernel's in-process queue while keeping its interface.
+`init` reads the specifications to scaffold every credential the selected capabilities
+need — including the ones pulled in transitively, which are exactly the ones an operator
+would not think to look for.
 
-Every command above is read-only.
+`graph` shows the resolver doing the work that matters: two capabilities are named in the
+manifest, three more (`docs.generation`, `data.files`, `ops.queue`) are pulled in
+transitively with the chain that caused each addition, and `ops.queue` supersedes the
+kernel's in-process queue while keeping its interface intact.
+
+`apply` is the only command that mutates anything.
+
+## What it produces
+
+56 files for the Phase 1 product: **24 managed** (hash-tracked, overwritten on apply,
+drift reported) and **32 seeded** (slot stubs and skeleton files that belong to the client
+the moment they are written). Managed output is 820 lines, with the largest single
+capability at 260 against a 400-line budget — see
+[`ARCHITECTURE.md` §9.1](ARCHITECTURE.md#91-generated-code-will-be-edited-by-humans) for
+the measurement, including the categorisation error the first measurement exposed.
 
 ## Test
 
@@ -76,9 +99,13 @@ python3 tools/validate.py      # schemas and catalog consistency (needs jsonsche
 
 The Go tests cover the parts the brief singles out as silently corrupting a client:
 dependency resolution, upgrade substitution and interface satisfaction, conflict
-detection, apply ordering, and determinism across repeated runs. `tools/validate.py`
-checks the shipped catalog against the shipped schema and caught two real inconsistencies
-while the kernel was being written.
+detection, apply ordering, plan diffing, state persistence and concurrent-write
+rejection, idempotency, drift, ejection, and determinism across repeated runs. Two of them
+are guardrails rather than assertions — the generation budget, and the rule that
+capability output must not scale with the client's data model.
+
+`tools/validate.py` checks the shipped catalog against the shipped schema and caught two
+real inconsistencies while the kernel was being written.
 
 ## The two rules that make this real
 

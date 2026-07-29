@@ -1,0 +1,8 @@
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  experimental: { instrumentationHook: true },
+  transpilePackages: [{{ range $i, $p := .Graph.Packages }}{{ if $i }}, {{ end }}{{ $p | quote }}{{ end }}],
+}
+
+export default config

@@ -1,0 +1,12 @@
+import { registerNavItem } from '@forge/kernel-ui'
+import { navigationOrder } from '@/slots/kernel.ui/navigationOrder'
+
+// Navigation resolved from the surfaces declared across the graph, then passed
+// through the client's ordering slot.
+const items = [
+{{- range .Graph.NavItems }}
+  { label: {{ .Label | quote }}, path: {{ .Path | quote }}, group: {{ .Group | quote }}, order: {{ .Order }}{{ if .Permission }}, permission: {{ .Permission | quote }}{{ end }} },
+{{- end }}
+]
+
+for (const item of navigationOrder(items)) registerNavItem(item)

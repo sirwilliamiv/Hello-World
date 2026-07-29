@@ -1,0 +1,13 @@
+import { configurePayments } from '@forge/pay-card'
+import { env } from '@/generated/env'
+import * as slots from '@/slots/pay.card'
+
+configurePayments({
+  secretKey: env.STRIPE_SECRET_KEY,
+  webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+  captureMethod: {{ cfgStr .Config "capture_method" "automatic" | quote }},
+{{- if index .Config "statement_descriptor" }}
+  statementDescriptor: {{ cfgStr .Config "statement_descriptor" "" | quote }},
+{{- end }}
+  slots,
+})

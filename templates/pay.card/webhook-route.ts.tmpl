@@ -1,0 +1,6 @@
+import { stripeWebhookHandler } from '@forge/pay-card'
+import '@/generated/pay.card/config'
+
+// Signature-verified inside the package: an unsigned or mis-signed payload is
+// rejected before it is parsed.
+export const POST = stripeWebhookHandler

@@ -1,0 +1,7 @@
+{{- if index .Graph.SupersededBy "kernel.work" }}
+// kernel.work is superseded by {{ index .Graph.SupersededBy "kernel.work" }} in this product.
+// enqueue() and schedule() keep their signatures; the implementation is durable.
+export { enqueue, schedule } from '@forge/ops-queue'
+{{- else }}
+export { enqueue, schedule } from '@forge/kernel-work'
+{{- end }}

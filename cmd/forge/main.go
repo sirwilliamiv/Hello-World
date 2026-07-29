@@ -1,8 +1,8 @@
 // Command forge composes client products from versioned capabilities.
 //
-// Phase 1 implements the read-only half of the command surface: validate,
-// catalog, and graph. Nothing here mutates anything — plan and apply arrive
-// with the codegen provider.
+// Phase 1 implements init, validate, plan, apply, catalog, graph, drift, eject,
+// and quote on the codegen provider. Apply is the only command that mutates
+// anything; every other command is structurally read-only.
 package main
 
 import (
@@ -24,17 +24,24 @@ import (
 const usage = `forge — compose client products from versioned capabilities
 
 Usage:
+  forge init --product <slug>       scaffold a manifest
   forge validate [-f forge.yaml]    schema, graph, conflict, and credential checks
+  forge plan                        compute and display the diff, mutate nothing
+  forge apply                       execute with confirmation
+  forge drift                       report hand-edits to generated files
+  forge eject <path> --reason "..." release one file from management
   forge catalog                     browse the capability catalog
   forge catalog show <id>           full specification including all interactions
   forge graph [-f forge.yaml]       render the resolved dependency graph
   forge quote [-f forge.yaml]       priced proposal computed from the manifest
 
 Flags:
-  -f, --file    manifest path (default forge.yaml)
-  -C, --root    repository root holding catalog/ and schemas/ (default .)
+  -f, --file        manifest path (default forge.yaml)
+  -C, --root        repository root holding catalog/, schemas/, templates/
+  --target-dir      client repository to plan or apply against (default .)
+  --env             environment to build (default development)
 
-Every command in this list is read-only.
+apply is the only command that mutates anything.
 `
 
 func main() {
@@ -47,8 +54,18 @@ func main() {
 
 	var code int
 	switch cmd {
+	case "init":
+		code = cmdInit(args)
 	case "validate":
 		code = cmdValidate(args)
+	case "plan":
+		code = cmdPlan(args)
+	case "apply":
+		code = cmdApply(args)
+	case "drift":
+		code = cmdDrift(args)
+	case "eject":
+		code = cmdEject(args)
 	case "catalog":
 		code = cmdCatalog(args)
 	case "graph":

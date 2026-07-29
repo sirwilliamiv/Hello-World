@@ -1,0 +1,7 @@
+import { startWorker } from '@forge/ops-queue'
+import '@/generated/ops.queue/config'
+import '@/generated/kernel.events/subscriptions'
+
+// Worker entry point. Jobs come from the resolved graph's capabilities; this
+// file only starts the loop.
+void startWorker()

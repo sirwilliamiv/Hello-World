@@ -1,0 +1,15 @@
+import { registerPermission } from '@forge/kernel-access'
+
+// Collected from every capability's `registers` block in the resolved graph.
+// Adding a capability adds its permissions here automatically.
+{{- range .Graph.Permissions }}
+registerPermission({{ . | quote }})
+{{- end }}
+
+export const PERMISSIONS = [
+{{- range .Graph.Permissions }}
+  {{ . | quote }},
+{{- end }}
+] as const
+
+export type Permission = (typeof PERMISSIONS)[number]

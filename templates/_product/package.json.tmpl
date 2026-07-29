@@ -1,0 +1,30 @@
+{
+  "name": {{ .Product.ID | quote }},
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "tsx src/generated/ops.queue/worker.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "next": "15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "drizzle-orm": "0.44.2",
+    "postgres": "3.4.5",
+    "zod": "3.25.0"{{ range .Graph.Packages }},
+    {{ . | quote }}: "workspace:*"{{ end }}
+  },
+  "devDependencies": {
+    "@types/node": "22.15.0",
+    "@types/react": "19.1.0",
+    "drizzle-kit": "0.31.1",
+    "tsx": "4.20.0",
+    "typescript": "5.8.3",
+    "vitest": "3.2.0"
+  }
+}

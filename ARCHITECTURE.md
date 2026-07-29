@@ -1,9 +1,13 @@
 # Forge Architecture
 
 **Origin Platform Labs LLC**
-Status: **Draft for review.** No engine code has been written. This document, the two
-JSON Schemas in `schemas/`, and the kernel specifications in `catalog/kernel/` are the
-Phase 0 deliverable described in the brief's *How to Start*.
+Status: **Phase 1, engine complete.** The resolution pipeline, plan/apply lifecycle,
+state, drift detection, and per-file ejection all work end to end on the codegen provider.
+The `@forge/*` runtime packages the generated wiring imports are not yet implemented, so
+the generated application does not boot — see §13.
+
+Phase 0's six open questions are decided in §14. The generation budget in §4, flagged
+there as the load-bearing unproven assumption, has now been measured — §9.1.
 
 ---
 
@@ -132,8 +136,10 @@ overlay. Fleet operations iterate over workspaces.
 
 A computed diff between desired and actual state. Mutates nothing, ever. `plan`,
 `validate`, `catalog`, `graph`, `quote`, `outdated`, and `drift` are all read-only, and
-this is enforced structurally: the read-only command set is handed a `ReadOnlyProvider`
-wrapper whose mutating methods panic. This is a cheap guarantee and worth the cost.
+this is enforced structurally: `provider.ReadOnly` wraps a provider so that `Apply`
+panics, and providers return actions from `Plan` rather than performing them. A provider
+that mutates during a plan therefore fails loudly in tests rather than quietly in a
+client's repository.
 
 ### State
 
@@ -583,13 +589,35 @@ The primary defense is architectural, not procedural: capabilities ship as npm p
 For the residue: three zones, hash tracking, drift reported and never silently overwritten,
 slots as the sanctioned customisation path, per-file recorded ejection.
 
-**Honest risk.** The generation budget is the load-bearing assumption and it is not yet
-proven. Some capabilities — `ops.formbuilder`, `ops.reporting`, `integrate.publicapi` —
-generate code derived from *client-declared* entities, and that output scales with the
-client's data model rather than with the capability. Phase 1 must measure real generated
-line counts for the two chosen capabilities before we trust the number. If it does not
-hold, the answer is to move generation to build time (a Next.js plugin generating into
-`.next/` from the manifest, never into the repository) rather than to raise the budget.
+**Measured, and the risk was real.** The Phase 1 product (kernel + `pay.card` +
+`pay.invoices` + their closure) generates **820 lines of managed code across 24 files**,
+plus 32 seeded files the client owns outright.
+
+| Attributed to | 0 client entities | 12 client entities × 8 fields |
+|---|---|---|
+| `kernel.data` (worst capability) | 260 | 260 |
+| `kernel.events` | 95 | 95 |
+| `kernel.admin` | 47 | 59 |
+| `<client>` | 12 | 504 |
+
+The first measurement put `kernel.data` at **664 lines — a clear breach** — because the
+client-entity registrations and their SQL were rendered inside `kernel.data`'s templates.
+That was a categorisation error, not a budget failure: those files are *the client's data
+model rendered*, and they change when the manifest changes, not when a capability
+upgrades. They now render as `<client>` (`internal/render/product.go`) and are measured
+against a separate rule.
+
+**Capability output must stay flat against the client's data model.** That property is
+what makes the budget hold at all, and it is enforced by a test
+(`TestCapabilityOutputDoesNotScaleWithClientEntities`) that fails if any capability grows
+by more than 50 lines when twelve client entities are added.
+
+The Phase 6 capabilities named as the original risk — `ops.formbuilder`, `ops.reporting`,
+`integrate.publicapi` — are still unmeasured, because they are not built. They must follow
+the same rule: anything derived from client declarations renders as `<client>`, and
+anything that genuinely cannot be kept flat moves to build-time generation (a Next.js
+plugin rendering into `.next/` from the manifest, never into the repository) rather than
+raising the budget.
 
 ### 9.2 Upgrading a capability across a live fleet
 
