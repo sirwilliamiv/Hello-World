@@ -15,15 +15,23 @@ previous client. Two numbers define success:
 
 ---
 
-## Status: Phase 1, engine complete
+## Status: Phase 1 complete — the application builds
 
-An empty directory to a rendered client application in two commands. The resolution
-pipeline, plan/apply lifecycle, state, drift detection, and per-file ejection all work;
-applying twice is a verified no-op and rendering is byte-identical across runs.
+```
+forge init --target-dir apps/acme --product acme --capabilities pay.card,pay.invoices
+forge apply -f apps/acme/forge.yaml --target-dir apps/acme
+cd apps/acme && pnpm build          # ✓ Next.js production build
+```
 
-The `@forge/*` runtime packages that the generated wiring imports are **not implemented
-yet**, so the generated app does not boot. That is the remaining Phase 1 work and it is
-ordinary application development against interfaces the specifications already pin down.
+| | |
+|---|---|
+| Capability packages | 16, all green — **526 tests**, 0 type errors |
+| Boundary violations | 0 (`forge lint`) |
+| Second apply | no changes (idempotent) |
+| Rendering | byte-identical across independent runs, state included |
+
+Not yet verified: the app has not run against a live Postgres, so migrations and a real
+Stripe test-mode charge are untested end to end. That is what remains of Phase 1.
 
 | Artifact | Path |
 |---|---|

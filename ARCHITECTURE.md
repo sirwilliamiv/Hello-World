@@ -1,10 +1,14 @@
 # Forge Architecture
 
 **Origin Platform Labs LLC**
-Status: **Phase 1, engine complete.** The resolution pipeline, plan/apply lifecycle,
-state, drift detection, and per-file ejection all work end to end on the codegen provider.
-The `@forge/*` runtime packages the generated wiring imports are not yet implemented, so
-the generated application does not boot — see §13.
+Status: **Phase 1 complete.** An empty directory becomes a Next.js application that
+builds, in two commands. The resolution pipeline, plan/apply lifecycle, state, drift
+detection, and per-file ejection all work on the codegen provider; all 16 capability
+packages are implemented (526 tests, zero type errors, zero boundary violations); and
+`next build` succeeds against the reference product in `apps/reference`.
+
+Not yet done: the app has not been run against a live Postgres, so migrations and a real
+Stripe test-mode charge are unverified end to end. That is the remaining Phase 1 work.
 
 Phase 0's six open questions are decided in §14. The generation budget in §4, flagged
 there as the load-bearing unproven assumption, has now been measured — §9.1.

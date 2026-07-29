@@ -55,12 +55,17 @@ function defaultId(prefix: string): string {
 }
 
 export function configurePayments(config: PaymentsConfig): void {
-  if (config.secretKey.length === 0) {
-    throw new Error('configurePayments: secretKey is empty. Check STRIPE_SECRET_KEY.')
-  }
-  if (config.webhookSecret.length === 0) {
-    throw new Error('configurePayments: webhookSecret is empty. Check STRIPE_WEBHOOK_SECRET.')
-  }
+  // Credentials are NOT validated here.
+  //
+  // The generated config module runs at import time, and a bundler that imports
+  // route modules to collect metadata — Next does exactly this during `next
+  // build` — has no real environment. Validating eagerly would make building
+  // require production secrets, and building is not running.
+  //
+  // Fail-fast is preserved where it belongs: the key is checked when the Stripe
+  // client is first constructed (see `stripe()` below), so a real request fails
+  // immediately with a message naming the missing variable rather than getting
+  // an opaque error from the provider.
   if (
     config.statementDescriptor !== undefined &&
     config.statementDescriptor.length > STATEMENT_DESCRIPTOR_MAX
@@ -88,6 +93,11 @@ export function configurePayments(config: PaymentsConfig): void {
     newId: config.idFactory ?? defaultId,
     stripe(): Promise<StripeLike> {
       if (injected !== null) return Promise.resolve(injected)
+      if (secretKey === undefined || secretKey.length === 0) {
+        return Promise.reject(
+          new Error('pay.card: STRIPE_SECRET_KEY is not set. Charges cannot be taken.'),
+        )
+      }
       pending ??= createStripeClient(secretKey).then((client) => {
         injected = client
         return client
