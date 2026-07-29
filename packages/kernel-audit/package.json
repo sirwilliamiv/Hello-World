@@ -6,12 +6,19 @@
   "description": "Basic activity trail",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json",
+    "./migrations/*": "./migrations/*"
+  },
   "dependencies": {
     "@forge/kernel-events": "workspace:*",
     "@forge/kernel-identity": "workspace:*",
     "drizzle-orm": "0.44.2",
     "zod": "3.23.8"
   },
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run --passWithNoTests" }
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
 }

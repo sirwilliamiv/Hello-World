@@ -2,7 +2,7 @@
   "state_version": 1,
   "workspace": "reference/development",
   "forge_version": "0.1.0",
-  "serial": 6,
+  "serial": 9,
   "manifest_hash": "sha256:339ec058da5fd2fc58ee7c0d784a33b959c0e13d0a148d5a2b68aacca46718ca",
   "catalog_snapshot": "2026-07-15",
   "lock": {
@@ -162,8 +162,8 @@
       "capability": "\u003cproduct\u003e",
       "template": "migrate.ts",
       "template_version": "1.0.0",
-      "generated_hash": "sha256:5ab7f2c177a527ae572abfd28b2016cbdf66f891ba5454b8633e980ab38ac0c9",
-      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+      "generated_hash": "sha256:a3a3d1061d69fb72cdb5bde93ceb6d7509e89933500af3b5673a3a86bf6f2bb0",
+      "rendered_inputs_hash": "sha256:1cfda9a2037275ac5090bf94ab7ec7244f0e39f7f5488659b3f43c41135fc3d7"
     },
     {
       "path": "src/app/api/webhooks/stripe/route.ts",

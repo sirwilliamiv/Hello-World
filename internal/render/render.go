@@ -244,12 +244,15 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 		}
 		return f.NavItems[i].Path < f.NavItems[j].Path
 	})
-	sort.Slice(f.Migrations, func(i, j int) bool {
-		if f.Migrations[i].ID != f.Migrations[j].ID {
-			return f.Migrations[i].ID < f.Migrations[j].ID
-		}
-		return f.Migrations[i].Capability < f.Migrations[j].Capability
-	})
+	// Migrations are deliberately NOT sorted. They are appended while walking
+	// g.Active(), which is graph order — dependencies before dependents — and
+	// that is exactly what the runner requires: a capability's tables must exist
+	// before the tables that reference them.
+	//
+	// Sorting by id looked tidy and was a real bug. Every kernel migration shares
+	// the 20260601_ prefix, so an id sort is alphabetical by capability name:
+	// kernel.access ran before kernel.identity and failed on a foreign key to
+	// identity_users. Graph order is already deterministic, so nothing is lost.
 	return f
 }
 

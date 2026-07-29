@@ -8,7 +8,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./monitor": "./src/monitor.ts"
+    "./monitor": "./src/monitor.ts",
+    "./package.json": "./package.json",
+    "./migrations/*": "./migrations/*"
   },
   "dependencies": {
     "@forge/kernel-events": "workspace:*",
