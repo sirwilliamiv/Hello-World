@@ -86,6 +86,7 @@ export { renderCreditNote, renderInvoice, renderReceipt, type RenderedDocument }
 // Published event contracts
 export {
   PAY_INVOICES_EVENT_CONTRACT_VERSIONS,
+  registerPayInvoicesEventSchemas,
   invoiceCreatedPayload,
   invoiceOverduePayload,
   invoicePaidPayload,

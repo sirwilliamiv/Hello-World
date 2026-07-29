@@ -4,6 +4,7 @@ import {
   RECEIPT_TEMPLATE_ID,
   requireInvoicesRuntime,
 } from './config.js'
+import type { GeneratedDocument } from '@forge/docs-generation'
 import { DocumentRenderError } from './errors.js'
 import { currencyOf, minorOf } from './money.js'
 import type { CreditNote, Invoice, InvoiceLine, Receipt } from './types.js'
@@ -18,13 +19,29 @@ import type { CreditNote, Invoice, InvoiceLine, Receipt } from './types.js'
  * used, and every later render of that invoice asks for exactly that version.
  * docs.generation's `TemplateVersion` table is append-only, so the pinned version
  * cannot change underneath us.
+ *
+ * A pinned version is an INTEGER — docs.generation numbers versions 1, 2, 3 — while
+ * `invoice.document_template_version` is a text column. The two conversions live
+ * here and nowhere else, in `pinOf` and `pinFrom`.
  */
 
-export interface RenderedDocument {
-  readonly id: string
-  readonly templateVersion: string
-  readonly contentType: string
-  readonly bytes?: Uint8Array
+export type RenderedDocument = GeneratedDocument
+
+/** The stored (text) form of a pin. */
+function pinOf(version: number): string {
+  return String(version)
+}
+
+/** The docs.generation (integer) form of a stored pin, or null when unpinned. */
+function pinFrom(stored: string | null | undefined): number | null {
+  if (stored === null || stored === undefined) return null
+  const version = Number(stored)
+  if (!Number.isInteger(version) || version < 1) {
+    throw new DocumentRenderError(
+      `document_template_version '${stored}' is not a docs.generation template version`,
+    )
+  }
+  return version
 }
 
 interface InvoiceDocumentData {
@@ -96,23 +113,25 @@ export async function renderInvoice(invoice: Invoice): Promise<RenderedDocument>
   const docs = await rt.documents()
   const lines = await formatLines(invoice)
 
-  const pinned = invoice.documentTemplateVersion
-  const rendered = await docs.generate(
-    pinned === null || pinned === undefined
-      ? { id: INVOICE_TEMPLATE_ID }
-      : { id: INVOICE_TEMPLATE_ID, version: pinned },
-    documentData(invoice, lines),
-  )
+  const pinned = pinFrom(invoice.documentTemplateVersion)
+  const rendered = await docs.generate({ key: INVOICE_TEMPLATE_ID }, documentData(invoice, lines), {
+    subjectRef: `Invoice:${invoice.id}`,
+    ...(pinned === null ? {} : { templateVersion: pinned }),
+  })
 
-  if (pinned === null || pinned === undefined) {
+  if (pinned === null) {
     // First render: pin the version so a reissue is byte-identical.
     await rt.store.transaction((tx) =>
-      tx.setInvoiceDocumentVersion(invoice.id, INVOICE_TEMPLATE_ID, rendered.templateVersion),
+      tx.setInvoiceDocumentVersion(
+        invoice.id,
+        INVOICE_TEMPLATE_ID,
+        pinOf(rendered.templateVersion),
+      ),
     )
   } else if (rendered.templateVersion !== pinned) {
     throw new DocumentRenderError(
-      `invoice ${invoice.number} is pinned to template version ${pinned} but docs.generation ` +
-        `rendered ${rendered.templateVersion}`,
+      `invoice ${invoice.number} is pinned to template version ${String(pinned)} but ` +
+        `docs.generation rendered ${String(rendered.templateVersion)}`,
     )
   }
 
@@ -122,10 +141,9 @@ export async function renderInvoice(invoice: Invoice): Promise<RenderedDocument>
 export async function renderReceipt(receipt: Receipt, invoice: Invoice): Promise<RenderedDocument> {
   const rt = requireInvoicesRuntime()
   const docs = await rt.documents()
+  const pinned = pinFrom(receipt.documentTemplateVersion)
   return docs.generate(
-    receipt.documentTemplateVersion === null
-      ? { id: RECEIPT_TEMPLATE_ID }
-      : { id: RECEIPT_TEMPLATE_ID, version: receipt.documentTemplateVersion },
+    { key: RECEIPT_TEMPLATE_ID },
     {
       receiptId: receipt.id,
       invoiceNumber: invoice.number,
@@ -134,6 +152,10 @@ export async function renderReceipt(receipt: Receipt, invoice: Invoice): Promise
       currency: currencyOf(receipt.amount),
       issuedAt: receipt.issuedAt.toISOString(),
       legalEntity: invoice.legalEntity,
+    },
+    {
+      subjectRef: `Receipt:${receipt.id}`,
+      ...(pinned === null ? {} : { templateVersion: pinned }),
     },
   )
 }
@@ -145,7 +167,7 @@ export async function renderCreditNote(
   const rt = requireInvoicesRuntime()
   const docs = await rt.documents()
   return docs.generate(
-    { id: CREDIT_NOTE_TEMPLATE_ID },
+    { key: CREDIT_NOTE_TEMPLATE_ID },
     {
       creditNoteId: note.id,
       invoiceNumber: invoice.number,
@@ -155,5 +177,6 @@ export async function renderCreditNote(
       issuedAt: note.issuedAt.toISOString(),
       legalEntity: invoice.legalEntity,
     },
+    { subjectRef: `CreditNote:${note.id}` },
   )
 }

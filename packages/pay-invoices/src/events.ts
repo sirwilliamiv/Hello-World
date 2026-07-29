@@ -1,4 +1,4 @@
-import { publish } from '@forge/kernel-events'
+import { publish, registerEventSchema } from '@forge/kernel-events'
 import { z } from 'zod'
 
 /**
@@ -72,6 +72,29 @@ const schemas = {
 
 export type PayInvoicesEventName = keyof typeof schemas
 export type PayInvoicesPayload<E extends PayInvoicesEventName> = z.infer<(typeof schemas)[E]>
+
+/**
+ * Register the five published schemas with kernel.events.
+ *
+ * The bus refuses to publish an event whose schema is not registered — a
+ * capability may only publish what it declares — so this is not optional
+ * bookkeeping: without it every `publishInvoiceEvent` call throws
+ * `UnregisteredEventSchemaError`. Called at import time; exported so a test that
+ * cleared the registry can put them back.
+ */
+export function registerPayInvoicesEventSchemas(): void {
+  for (const [name, schema] of Object.entries(schemas)) {
+    registerEventSchema({
+      name,
+      contractVersion:
+        PAY_INVOICES_EVENT_CONTRACT_VERSIONS[name as PayInvoicesEventName],
+      schema,
+      publisher: 'pay.invoices',
+    })
+  }
+}
+
+registerPayInvoicesEventSchemas()
 
 export async function publishInvoiceEvent<E extends PayInvoicesEventName>(
   name: E,

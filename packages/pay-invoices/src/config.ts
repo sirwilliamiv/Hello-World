@@ -1,3 +1,8 @@
+import type {
+  GeneratedDocument,
+  GenerateOptions,
+  TemplateRef,
+} from '@forge/docs-generation'
 import type { InvoiceStore } from './db/port.js'
 import { createPostgresStore } from './db/postgres.js'
 import { parseNumberingScheme, type ParsedScheme } from './numbering.js'
@@ -12,12 +17,21 @@ import type { InvoiceSlots } from './slots.js'
  * discovering it too late.
  */
 
+/**
+ * The slice of docs.generation this capability calls.
+ *
+ * Deliberately expressed in docs.generation's own types rather than in a
+ * paraphrase of them: a template version is an integer that the template store
+ * increments, `generate` returns the rendering's derived id and content hash
+ * rather than its bytes, and a pin is `{ templateVersion: n }`. Restating any of
+ * that in local types is how a port drifts away from the thing it is a port to.
+ */
 export interface DocumentRenderer {
   generate(
-    template: { id: string; version?: string },
+    template: TemplateRef,
     data: unknown,
-    opts?: { version?: string; format?: string },
-  ): Promise<{ id: string; templateVersion: string; contentType: string; bytes?: Uint8Array }>
+    opts?: GenerateOptions,
+  ): Promise<GeneratedDocument>
 }
 
 export interface InvoicesConfig {
@@ -50,9 +64,15 @@ export interface InvoicesRuntime {
 let runtime: InvoicesRuntime | null = null
 
 export const DEFAULT_NUMBERING_SCHEME = 'INV-{YYYY}-{SEQ:5}'
-export const INVOICE_TEMPLATE_ID = 'pay.invoices/invoice'
-export const RECEIPT_TEMPLATE_ID = 'pay.invoices/receipt'
-export const CREDIT_NOTE_TEMPLATE_ID = 'pay.invoices/credit-note'
+
+/**
+ * docs.generation addresses a template by its client-facing KEY, and its own
+ * `invoice.created` handler renders the key `invoice`. Namespacing these as
+ * `pay.invoices/invoice` would have pointed at templates that do not exist.
+ */
+export const INVOICE_TEMPLATE_ID = 'invoice'
+export const RECEIPT_TEMPLATE_ID = 'receipt'
+export const CREDIT_NOTE_TEMPLATE_ID = 'credit-note'
 
 function defaultId(prefix: string): string {
   return `${prefix}_${globalThis.crypto.randomUUID()}`
@@ -87,7 +107,7 @@ export function configureInvoices(config: InvoicesConfig): void {
     documents(): Promise<DocumentRenderer> {
       if (documents !== null) return Promise.resolve(documents)
       pending ??= import('@forge/docs-generation').then((mod) => {
-        documents = mod as unknown as DocumentRenderer
+        documents = { generate: mod.generate }
         return documents
       })
       return pending
