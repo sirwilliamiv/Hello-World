@@ -54,7 +54,7 @@ describe('retention sweep', () => {
   })
 
   it('deletes nothing on its own until the retentionRules slot says so', async () => {
-    h.cleanup()
+    await h.cleanup()
     h = await setupFiles({
       slots: {
         retentionRules: (ctx) =>

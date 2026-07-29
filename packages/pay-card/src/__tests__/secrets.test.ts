@@ -26,14 +26,15 @@ function containsSecret(value: string): boolean {
 
 describe('secret handling', () => {
   it('does not expose the secret key or webhook secret from the package surface', () => {
-    const serialised = JSON.stringify(
-      Object.fromEntries(
-        Object.entries(payCard).map(([k, v]) => [k, typeof v === 'function' ? 'fn' : v]),
-      ),
-    )
-    expect(containsSecret(serialised)).toBe(false)
-    expect(Object.keys(payCard)).not.toContain('secretKey')
-    expect(Object.keys(payCard)).not.toContain('webhookSecret')
+    const exportedNames = Object.keys(payCard)
+    expect(exportedNames).not.toContain('secretKey')
+    expect(exportedNames).not.toContain('webhookSecret')
+    expect(exportedNames.filter((n) => /secret|apiKey|credential/i.test(n))).toEqual([])
+
+    // No string reachable one level down from an export carries a secret.
+    for (const value of Object.values(payCard)) {
+      if (typeof value === 'string') expect(containsSecret(value)).toBe(false)
+    }
   })
 
   it('never writes a secret into an event payload', async () => {

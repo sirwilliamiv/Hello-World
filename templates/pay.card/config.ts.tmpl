@@ -6,6 +6,7 @@ configurePayments({
   secretKey: env.STRIPE_SECRET_KEY,
   webhookSecret: env.STRIPE_WEBHOOK_SECRET,
   captureMethod: {{ cfgStr .Config "capture_method" "automatic" | quote }},
+  allowedCurrencies: {{ cfg .Config "allowed_currencies" (dict) | json }},
 {{- if index .Config "statement_descriptor" }}
   statementDescriptor: {{ cfgStr .Config "statement_descriptor" "" | quote }},
 {{- end }}
