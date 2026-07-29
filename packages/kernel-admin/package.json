@@ -1,0 +1,21 @@
+{
+  "name": "@forge/kernel-admin",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Administrative interface",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@forge/kernel-access": "workspace:*",
+    "@forge/kernel-data": "workspace:*",
+    "@forge/kernel-ui": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}

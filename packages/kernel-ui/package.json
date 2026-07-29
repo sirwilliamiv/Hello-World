@@ -1,0 +1,17 @@
+{
+  "name": "@forge/kernel-ui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Design tokens, component library, and application shell",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {},
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}

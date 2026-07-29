@@ -1,0 +1,19 @@
+{
+  "name": "@forge/kernel-identity",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Users, sessions, and login",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@forge/kernel-data": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}

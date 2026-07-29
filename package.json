@@ -1,0 +1,16 @@
+{
+  "name": "forge-packages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "vitest": "3.2.0",
+    "@types/node": "22.15.0",
+    "@types/react": "19.1.0",
+    "zod": "3.25.0"
+  }
+}

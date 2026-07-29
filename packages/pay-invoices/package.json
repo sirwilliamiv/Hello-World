@@ -1,0 +1,20 @@
+{
+  "name": "@forge/pay-invoices",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Invoices and Receipts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@forge/docs-generation": "workspace:*",
+    "@forge/kernel-money": "workspace:*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}
