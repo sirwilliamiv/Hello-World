@@ -69,6 +69,7 @@ export { buildChargeReceipt, defaultChargeReceipt, withReceiptLine } from './rec
 // Published event contracts, so a consumer can validate against the same schema
 export {
   PAY_CARD_EVENT_CONTRACT_VERSIONS,
+  registerPayCardEventSchemas,
   paymentFailedPayload,
   paymentMethodAddedPayload,
   paymentRefundedPayload,

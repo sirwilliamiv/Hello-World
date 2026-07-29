@@ -5,19 +5,23 @@ import { Money } from '@forge/kernel-money'
  *
  * kernel.money owns the primitive; pay.card only ever needs "give me the integer
  * minor units" and "give me the currency code". Funnelling both through two
- * functions means that if kernel.money's accessor names differ from the ones
- * assumed here, the fix is two lines in one file rather than a sweep of the
- * package.
+ * functions means that if kernel.money's accessor names change, the fix is two
+ * lines in one file rather than a sweep of the package.
+ *
+ * The accessors kernel.money actually exposes are `amountMinor` and `currency`
+ * (see @forge/kernel-money's `Money`), so those are what these read. The value
+ * is still re-checked here: `charge()` accepts a `Money` from client code, and a
+ * hand-rolled object claiming to be one must not reach Stripe as a float.
  */
 
 export function minorOf(amount: Money): number {
-  const minor = (amount as unknown as { minor: number }).minor
-  assertIntegerMinor(minor, 'Money.minor')
+  const minor = (amount as { amountMinor: number }).amountMinor
+  assertIntegerMinor(minor, 'Money.amountMinor')
   return minor
 }
 
 export function currencyOf(amount: Money): string {
-  return (amount as unknown as { currency: string }).currency
+  return (amount as { currency: string }).currency
 }
 
 export function money(minor: number, currency: string): Money {

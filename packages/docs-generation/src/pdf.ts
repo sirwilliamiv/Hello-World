@@ -16,6 +16,8 @@
  * worse than a byte-unstable one — and the assertion in the test suite would catch it.
  */
 import { createHash } from 'node:crypto'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { PdfEngineUnavailableError } from './errors.js'
 import type { PageSize } from './types.js'
 
@@ -31,6 +33,7 @@ interface PlaywrightLike {
     launch(options?: {
       args?: string[]
       headless?: boolean
+      executablePath?: string
     }): Promise<{
       newPage(): Promise<{
         emulateMedia(options: { media: 'print' | 'screen' }): Promise<void>
@@ -47,6 +50,40 @@ type Browser = Awaited<ReturnType<PlaywrightLike['chromium']['launch']>>
 
 let browser: Browser | null = null
 
+// Rendering flags that remove run-to-run variation. They do not make two *different*
+// Chromium builds agree — the catalog snapshot pins the browser version for the same
+// reason it pins Prettier (ARCHITECTURE.md section 10) — but with one build they make
+// the output stable.
+const LAUNCH_ARGS = [
+  '--font-render-hinting=none',
+  '--disable-lcd-text',
+  '--force-color-profile=srgb',
+  '--hide-scrollbars',
+  '--disable-dev-shm-usage',
+]
+
+/**
+ * Where a pre-installed Chromium lives when Playwright's own lookup fails.
+ *
+ * Playwright resolves the browser by the exact revision its own version was built
+ * against. An image that pre-installs a browser under `PLAYWRIGHT_BROWSERS_PATH` at a
+ * different revision therefore makes the bundled lookup fail even though a perfectly
+ * usable Chromium is sitting on disk, and `playwright install` is not always available
+ * to reconcile them. Launching that binary by path is the supported escape hatch.
+ *
+ * This changes only *how the binary is found*, never *which* binary: determinism still
+ * rests on the environment pinning one build, exactly as before. Preferred order is an
+ * explicit override, then the conventional `chromium` entry in the browsers directory.
+ */
+function fallbackExecutablePath(): string | null {
+  const candidates: string[] = []
+  const explicit = process.env.FORGE_CHROMIUM_EXECUTABLE
+  if (explicit !== undefined && explicit !== '') candidates.push(explicit)
+  const root = process.env.PLAYWRIGHT_BROWSERS_PATH
+  if (root !== undefined && root !== '') candidates.push(join(root, 'chromium'))
+  return candidates.find((candidate) => existsSync(candidate)) ?? null
+}
+
 async function launch(): Promise<Browser> {
   if (browser !== null) return browser
   let playwright: PlaywrightLike
@@ -56,24 +93,38 @@ async function launch(): Promise<Browser> {
     throw new PdfEngineUnavailableError(`playwright is not installed (${String(cause)})`)
   }
   try {
-    browser = await playwright.chromium.launch({
-      headless: true,
-      args: [
-        // Rendering flags that remove run-to-run variation. They do not make two
-        // *different* Chromium builds agree — the catalog snapshot pins the browser
-        // version for the same reason it pins Prettier (ARCHITECTURE.md section 10) —
-        // but with one build they make the output stable.
-        '--font-render-hinting=none',
-        '--disable-lcd-text',
-        '--force-color-profile=srgb',
-        '--hide-scrollbars',
-        '--disable-dev-shm-usage',
-      ],
-    })
+    browser = await playwright.chromium.launch({ headless: true, args: LAUNCH_ARGS })
   } catch (cause) {
-    throw new PdfEngineUnavailableError(String(cause))
+    const executablePath = fallbackExecutablePath()
+    if (executablePath === null) throw new PdfEngineUnavailableError(String(cause))
+    try {
+      browser = await playwright.chromium.launch({
+        headless: true,
+        args: LAUNCH_ARGS,
+        executablePath,
+      })
+    } catch (fallbackCause) {
+      throw new PdfEngineUnavailableError(
+        `${String(cause)} — and ${executablePath} could not be started either: ${String(fallbackCause)}`,
+      )
+    }
   }
   return browser
+}
+
+/**
+ * True when a Chromium can actually be *started*, not merely when `playwright` is
+ * importable. The distinction is the whole point: an environment can ship the library
+ * without a matching browser revision, and a probe that only checks the import reports
+ * a working engine which then fails at render time.
+ */
+export async function chromiumLaunchable(): Promise<boolean> {
+  try {
+    await launch()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Shuts the shared browser down. Tests and worker shutdown call this. */

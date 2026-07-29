@@ -1,4 +1,4 @@
-import { publish } from '@forge/kernel-events'
+import { publish, registerEventSchema } from '@forge/kernel-events'
 import { z } from 'zod'
 
 /**
@@ -76,6 +76,31 @@ export type PayCardEventName = keyof typeof schemas
 
 export type PayCardPayload<E extends PayCardEventName> = z.infer<(typeof schemas)[E]>
 
+const SOURCE = 'pay.card'
+
+/**
+ * Register the four payload schemas with kernel.events.
+ *
+ * kernel.events refuses to publish an event whose schema it has not been told
+ * about — that is the runtime backstop for "a capability may only publish what
+ * its specification declares". Registration therefore happens at import time,
+ * so a charge cannot reach `publish` before the contract is known; it is also
+ * exported so a test that cleared the registry can put the schemas back.
+ * Registration is idempotent for an identical schema object.
+ */
+export function registerPayCardEventSchemas(): void {
+  for (const [name, schema] of Object.entries(schemas)) {
+    registerEventSchema({
+      name,
+      contractVersion: PAY_CARD_EVENT_CONTRACT_VERSIONS[name as PayCardEventName],
+      schema,
+      publisher: SOURCE,
+    })
+  }
+}
+
+registerPayCardEventSchemas()
+
 /**
  * Validates against the declared contract and then hands off to kernel.events.
  * Publishing is deliberately the last step of every operation, after the
@@ -86,5 +111,8 @@ export async function publishPayCardEvent<E extends PayCardEventName>(
   payload: PayCardPayload<E>,
 ): Promise<void> {
   const parsed = schemas[name].parse(payload)
-  await publish(name, parsed as never)
+  await publish(name, parsed as never, {
+    source: SOURCE,
+    contractVersion: PAY_CARD_EVENT_CONTRACT_VERSIONS[name],
+  })
 }

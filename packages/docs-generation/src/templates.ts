@@ -162,6 +162,25 @@ export async function resolveTemplateVersion(
   return { template, version: await getTemplateVersion(template.id, wanted) }
 }
 
+/**
+ * The version a rendering *would* pin right now, readable BEFORE rendering.
+ *
+ * Without this a caller can only learn the version from a render result, so the pin
+ * happens after the fact: it discovers which version it got rather than stating which
+ * version it wants. Reading the number first lets the caller pass it back as an
+ * explicit pin — `generate(ref, data, { templateVersion })` — so an edit landing
+ * between the lookup and the render changes nothing about the issued document. That is
+ * where "a reissued historical document is byte-identical" actually starts.
+ *
+ * A ref that already carries a version resolves to that version, so the answer is
+ * always the version this ref renders with, and the row is checked to exist rather
+ * than the pointer being trusted.
+ */
+export async function templateVersion(ref: TemplateRef): Promise<number> {
+  const { version } = await resolveTemplateVersion(ref)
+  return version.version
+}
+
 export async function listTemplates(): Promise<DocumentTemplate[]> {
   const { templates } = await stores()
   const all = await templates.findMany()

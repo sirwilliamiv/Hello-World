@@ -8,6 +8,8 @@
  * naive double and fail in production.
  */
 import {
+  chromiumLaunchable,
+  closePdfEngine,
   configureDocuments,
   resetDocumentsConfig,
   type DocsRuntime,
@@ -207,14 +209,18 @@ export function setupDocuments(overrides: Partial<DocumentsConfigInput> = {}): D
   return harness as DocsHarness
 }
 
-/** Chromium is optional; the PDF tests skip rather than fail where it is absent. */
+/**
+ * Chromium is optional; the PDF tests skip rather than fail where it is absent.
+ *
+ * This probes by actually launching, through the same code path `renderPdf` uses.
+ * Checking that `playwright` merely *imports* is not enough — the library resolves
+ * fine while the browser revision it wants is missing, so an import-only probe claims
+ * the engine is present and the suite then fails at the first render.
+ */
 export async function chromiumAvailable(): Promise<boolean> {
-  try {
-    await import('playwright')
-    return true
-  } catch {
-    return false
-  }
+  const launchable = await chromiumLaunchable()
+  await closePdfEngine()
+  return launchable
 }
 
 export const INVOICE_TEMPLATE = `<h1>Invoice {{ invoice.number }}</h1>

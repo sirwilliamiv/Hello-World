@@ -66,6 +66,7 @@ export {
   findTemplate,
   getTemplateVersion,
   resolveTemplateVersion,
+  templateVersion,
   listTemplates,
   listTemplateVersions,
   sourceHash,
@@ -75,7 +76,14 @@ export {
 // The engine, exported so a client can compile a template outside a document.
 export { compile, sortDeep, stringify, type CompiledTemplate, type HelperTable } from './template-engine.js'
 export { documentShell, type ShellOptions } from './styling.js'
-export { normalisePdf, isPdf, closePdfEngine, htmlToPdf, type PdfOptions } from './pdf.js'
+export {
+  normalisePdf,
+  isPdf,
+  closePdfEngine,
+  chromiumLaunchable,
+  htmlToPdf,
+  type PdfOptions,
+} from './pdf.js'
 
 // Slot types.
 export type {
