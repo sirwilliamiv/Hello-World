@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Money } from '@forge/kernel-money'
 import { InvoiceList } from '../InvoiceList.js'
-import { walk, type TestElement } from '../testing/doubles/jsx-runtime.js'
+import { walk, type RenderedElement } from '../testing/react-tree.js'
 import type { Invoice } from '../types.js'
 
 function invoice(overrides: Partial<Invoice> = {}): Invoice {
@@ -31,8 +31,8 @@ function invoice(overrides: Partial<Invoice> = {}): Invoice {
   }
 }
 
-function nodes(element: unknown): TestElement[] {
-  const out: TestElement[] = []
+function nodes(element: unknown): RenderedElement[] {
+  const out: RenderedElement[] = []
   walk(element, (n) => out.push(n))
   return out
 }
@@ -46,7 +46,10 @@ describe('InvoiceList', () => {
 
     const text = JSON.stringify(nodes(tree).map((n) => n.props))
     expect(text).toContain('INV-2026-00001')
-    expect(text).toContain('100.00 USD')
+    // The default formatter is kernel.money's `Money.format()`; 10_000 minor
+    // units of USD is $100.00 there.
+    expect(text).toContain(Money.of(10_000, 'USD').format())
+    expect(text).toContain('$100.00')
   })
 
   it('renders an empty state rather than an empty table', () => {
@@ -70,7 +73,7 @@ describe('InvoiceList', () => {
     InvoiceList({
       invoices: [invoice()],
       formatMoney: (m) => {
-        seen.push((m as unknown as { minor: number }).amountMinor)
+        seen.push(m.amountMinor)
         return 'formatted'
       },
     })

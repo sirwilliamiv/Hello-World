@@ -1,27 +1,56 @@
-import * as docsGeneration from '@forge/docs-generation'
-import * as kernelEvents from '@forge/kernel-events'
-import { __resetInvoicesForTests, configureInvoices, type DocumentRenderer } from '../config.js'
+import { resetEventBus, subscribe, type EventEnvelope } from '@forge/kernel-events'
+import { __resetInvoicesForTests, configureInvoices } from '../config.js'
+import { registerPayInvoicesEventSchemas } from '../events.js'
 import type { InvoiceSlots } from '../slots.js'
+import { setupDocuments, type DocsHarness } from './docs-runtime.js'
 import { MemoryInvoiceStore } from './memory-store.js'
 
 export const LEGAL_ENTITY = 'Acme Trading Ltd'
 
-interface BusHelpers {
-  published(name?: string): { name: string; payload: unknown }[]
-  resetEvents(): void
-  subscribe(pattern: string, handler: (e: { name: string; payload: unknown }) => Promise<void>): void
+export interface RecordedEvent {
+  readonly name: string
+  readonly payload: unknown
+  readonly id: string
 }
-export const bus = kernelEvents as unknown as BusHelpers
 
-interface DocsHelpers extends DocumentRenderer {
-  resetDocuments(): void
-  publishTemplateVersion(templateId: string, body: string): string
-  renderCount(): number
+const recorded: RecordedEvent[] = []
+
+/**
+ * A recorder over the REAL bus rather than a bus of our own.
+ *
+ * It subscribes with `**` exactly as audit.history and integrate.webhooks do, so an
+ * assertion about "what was published" is an assertion about what a real subscriber
+ * would have received — including the fact that kernel.events validates every
+ * payload against its registered schema and refuses to deliver one that does not
+ * satisfy it.
+ *
+ * `publish` awaits fan-out, so reading `published()` straight after an awaited call
+ * is not a race.
+ */
+export const bus = {
+  published(name?: string): RecordedEvent[] {
+    return name === undefined ? [...recorded] : recorded.filter((e) => e.name === name)
+  },
+  reset(): void {
+    resetEventBus()
+    recorded.length = 0
+    // The schema registry survives `resetEventBus`, and re-registering an
+    // identical schema is a no-op; this keeps the suite honest if a test ever
+    // clears the registry, because a cleared registry makes every publish throw.
+    registerPayInvoicesEventSchemas()
+    subscribe(
+      '**',
+      (event: EventEnvelope) => {
+        recorded.push({ name: event.name, payload: event.payload, id: event.id })
+      },
+      { consumer: 'test-recorder' },
+    )
+  },
 }
-export const docs = docsGeneration as unknown as DocsHelpers
 
 export interface Harness {
   readonly store: MemoryInvoiceStore
+  readonly docs: DocsHarness
 }
 
 export interface SetupOptions {
@@ -34,12 +63,12 @@ export interface SetupOptions {
 
 let ids = 0
 
-export function setupInvoices(options: SetupOptions = {}): Harness {
+export async function setupInvoices(options: SetupOptions = {}): Promise<Harness> {
   __resetInvoicesForTests()
-  bus.resetEvents()
-  docs.resetDocuments()
+  bus.reset()
   ids = 0
 
+  const docs = await setupDocuments()
   const store = new MemoryInvoiceStore()
 
   configureInvoices({
@@ -49,7 +78,8 @@ export function setupInvoices(options: SetupOptions = {}): Harness {
     overdueCheckCron: '0 6 * * *',
     ...(options.slots === undefined ? {} : { slots: options.slots }),
     store,
-    documents: docs,
+    // `documents` is deliberately NOT injected: config.ts resolves
+    // @forge/docs-generation itself, so the production wiring is what runs.
     clock: options.clock ?? (() => new Date('2026-07-01T09:00:00.000Z')),
     idFactory: (prefix) => {
       ids += 1
@@ -57,7 +87,7 @@ export function setupInvoices(options: SetupOptions = {}): Harness {
     },
   })
 
-  return { store }
+  return { store, docs }
 }
 
 /** A `payment.succeeded` envelope shaped exactly as pay.card publishes it. */

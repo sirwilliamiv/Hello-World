@@ -35,7 +35,7 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
   })
 
   it('marks the invoice paid and issues a receipt', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(25_000)] })
 
     const result = await applyPayment(
@@ -57,7 +57,7 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
   })
 
   it('does NOT double-apply a redelivered payment.succeeded', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(25_000)] })
     const event = paymentSucceededEvent({
       chargeId: 'chg_1',
@@ -82,7 +82,7 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
   })
 
   it('does not double-apply under CONCURRENT redelivery', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(25_000)] })
     const event = paymentSucceededEvent({
       chargeId: 'chg_1',
@@ -99,7 +99,7 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
   })
 
   it('applies two DIFFERENT charges against one invoice', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(30_000)] })
 
     const a = await applyPayment(
@@ -116,14 +116,14 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
   })
 
   it('ignores a payment that is not against an invoice', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const result = await applyPayment(paymentSucceededEvent({ chargeId: 'chg_x', amountMinor: 500 }))
     expect(result).toEqual({ applied: false, reason: 'no_matching_invoice' })
     expect(h.store.state.receipts).toHaveLength(0)
   })
 
   it('ignores a payment against a void invoice', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(5_000)] })
     const { voidInvoice } = await import('../invoice.js')
     await voidInvoice({ id: invoice.id }, 'issued in error')
@@ -138,7 +138,7 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
 
 describe('contract: refunds credit the invoice, idempotently', () => {
   it('issues one credit note however often payment.refunded is redelivered', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(25_000)] })
     await applyPayment(
       paymentSucceededEvent({ chargeId: 'chg_1', invoiceId: invoice.id, amountMinor: 25_000 }),
@@ -166,7 +166,7 @@ describe('contract: refunds credit the invoice, idempotently', () => {
   })
 
   it('ignores a refund for a charge that never paid an invoice', async () => {
-    setupInvoices()
+    await setupInvoices()
     const result = await creditOnRefund(
       paymentRefundedEvent({ refundId: 'rfd_9', chargeId: 'chg_unknown', amountMinor: 100 }),
     )

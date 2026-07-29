@@ -15,7 +15,7 @@ const line = (minor: number) => ({ description: 'Consulting', unitAmount: Money.
 
 describe('issue', () => {
   it('publishes invoice.created satisfying the declared contract', async () => {
-    setupInvoices()
+    await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(9_900)] })
     const created = bus.published('invoice.created')
     expect(created).toHaveLength(1)
@@ -32,14 +32,14 @@ describe('issue', () => {
   })
 
   it('rejects an invoice with no lines', async () => {
-    setupInvoices()
+    await setupInvoices()
     await expect(issue({ customerId: 'user_1', lines: [] })).rejects.toBeInstanceOf(
       InvoiceNotEmptyError,
     )
   })
 
   it('rejects mixed currencies', async () => {
-    setupInvoices()
+    await setupInvoices()
     await expect(
       issue({
         customerId: 'user_1',
@@ -49,7 +49,7 @@ describe('issue', () => {
   })
 
   it('rejects a fractional quantity that is not expressed in thousandths', async () => {
-    setupInvoices()
+    await setupInvoices()
     await expect(
       issue({
         customerId: 'user_1',
@@ -59,7 +59,7 @@ describe('issue', () => {
   })
 
   it('keeps every amount an integer number of minor units', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     await issue({
       customerId: 'user_1',
       lines: [
@@ -77,7 +77,7 @@ describe('issue', () => {
   })
 
   it('adds tax to the total without touching the subtotal', async () => {
-    setupInvoices()
+    await setupInvoices()
     const invoice = await issue({
       customerId: 'user_1',
       lines: [{ description: 'a', unitAmount: Money.of(10_000, 'USD'), taxAmount: Money.of(2_000, 'USD') }],
@@ -90,14 +90,14 @@ describe('issue', () => {
 
 describe('paymentTerms slot', () => {
   it('accepts a number of days', async () => {
-    setupInvoices({ slots: { paymentTerms: () => 7 } })
+    await setupInvoices({ slots: { paymentTerms: () => 7 } })
     const invoice = await issue({ customerId: 'user_1', lines: [line(100)] })
     expect(invoice.dueAt.toISOString()).toBe('2026-07-08T09:00:00.000Z')
   })
 
   it('accepts an explicit date and can see the default', async () => {
     let seenDefault: string | null = null
-    setupInvoices({
+    await setupInvoices({
       slots: {
         paymentTerms: (ctx) => {
           seenDefault = ctx.defaultDueAt().toISOString()
@@ -111,7 +111,7 @@ describe('paymentTerms slot', () => {
   })
 
   it('is bypassed by an explicit dueAt on the input', async () => {
-    setupInvoices({ slots: { paymentTerms: () => 7 } })
+    await setupInvoices({ slots: { paymentTerms: () => 7 } })
     const invoice = await issue({
       customerId: 'user_1',
       dueAt: new Date('2026-08-15T00:00:00.000Z'),
@@ -123,7 +123,7 @@ describe('paymentTerms slot', () => {
 
 describe('void', () => {
   it('issues a credit note for the outstanding amount and keeps the number', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(40_000)] })
 
     const note = await voidInvoice({ id: invoice.id }, 'duplicate of INV-2026-00007')
@@ -145,7 +145,7 @@ describe('void', () => {
   })
 
   it('does not return the number to the sequence', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const first = await issue({ customerId: 'user_1', lines: [line(100)] })
     await voidInvoice({ id: first.id }, 'issued in error')
     const second = await issue({ customerId: 'user_1', lines: [line(100)] })
@@ -155,7 +155,7 @@ describe('void', () => {
   })
 
   it('refuses to void twice, or to void a settled invoice', async () => {
-    setupInvoices()
+    await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(100)] })
     await voidInvoice({ id: invoice.id }, 'first')
     await expect(voidInvoice({ id: invoice.id }, 'second')).rejects.toBeInstanceOf(
@@ -170,7 +170,7 @@ describe('void', () => {
   })
 
   it('refuses an unknown invoice and an empty reason', async () => {
-    setupInvoices()
+    await setupInvoices()
     await expect(voidInvoice({ id: 'nope' }, 'reason')).rejects.toBeInstanceOf(InvoiceNotFoundError)
     const invoice = await issue({ customerId: 'user_1', lines: [line(100)] })
     await expect(voidInvoice({ id: invoice.id }, '  ')).rejects.toThrow(/requires a reason/)
@@ -179,7 +179,7 @@ describe('void', () => {
 
 describe('overdue sweep', () => {
   it('publishes invoice.overdue for unpaid invoices past their due date', async () => {
-    setupInvoices({ paymentTermsDays: 10 })
+    await setupInvoices({ paymentTermsDays: 10 })
     const a = await issue({ customerId: 'user_1', lines: [line(1_000)] })
     const b = await issue({ customerId: 'user_2', lines: [line(2_000)] })
     await applyPayment(paymentSucceededEvent({ chargeId: 'c', invoiceId: b.id, amountMinor: 2_000 }))
@@ -201,7 +201,7 @@ describe('overdue sweep', () => {
 
 describe('privacy handlers', () => {
   it('anonymises rather than deletes, so the sequence stays gapless', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     await issue({ customerId: 'user_1', lines: [line(100)] })
     await issue({ customerId: 'user_1', lines: [line(200)] })
 

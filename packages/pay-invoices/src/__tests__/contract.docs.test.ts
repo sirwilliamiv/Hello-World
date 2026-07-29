@@ -17,7 +17,7 @@ const line = (minor: number) => ({ description: 'Consulting', unitAmount: Money.
 
 describe('contract: pay.invoices × docs.generation', () => {
   it('renders a document at issue time and pins the version it used', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({ customerId: 'user_1', lines: [line(12_345)] })
 
     expect(docs.renderCount()).toBe(1)
@@ -27,7 +27,7 @@ describe('contract: pay.invoices × docs.generation', () => {
   })
 
   it('reissues byte-identically after the template has been edited', async () => {
-    setupInvoices()
+    await setupInvoices()
     const issued = await issue({ customerId: 'user_1', lines: [line(12_345)] })
     const atIssue = await renderInvoice(issued)
 
@@ -47,7 +47,7 @@ describe('contract: pay.invoices × docs.generation', () => {
   })
 
   it('a NEW invoice issued after the edit picks up the new version', async () => {
-    setupInvoices()
+    await setupInvoices()
     const before = await issue({ customerId: 'user_1', lines: [line(100)] })
     docs.publishTemplateVersion(INVOICE_TEMPLATE_ID, 'a completely different layout')
     const after = await issue({ customerId: 'user_1', lines: [line(100)] })
@@ -65,7 +65,7 @@ describe('contract: pay.invoices × docs.generation', () => {
 
 describe('lineItemFormatting slot', () => {
   it('may reorder and relabel lines', async () => {
-    setupInvoices({
+    await setupInvoices({
       slots: {
         lineItemFormatting: (ctx) =>
           [...ctx.lines].reverse().map((l) => ({ ...l, description: l.description.toUpperCase() })),
@@ -81,7 +81,7 @@ describe('lineItemFormatting slot', () => {
   })
 
   it('may not change what is owed', async () => {
-    setupInvoices({
+    await setupInvoices({
       slots: {
         lineItemFormatting: (ctx) =>
           ctx.lines.map((l) => ({ ...l, amount: Money.of(1, 'USD') })),

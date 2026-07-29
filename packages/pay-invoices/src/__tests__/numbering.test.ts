@@ -54,7 +54,7 @@ describe('numbering scheme validation', () => {
 
 describe('smoke: numbering is gapless under concurrency', () => {
   it('100 concurrent issues produce 100 consecutive numbers with no gaps and no duplicates', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
 
     const results = await Promise.all(
       Array.from({ length: 100 }, (_, i) =>
@@ -84,7 +84,7 @@ describe('smoke: numbering is gapless under concurrency', () => {
   })
 
   it('keeps sequences independent per legal entity', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
 
     const results = await Promise.all([
       ...Array.from({ length: 20 }, () =>
@@ -106,7 +106,7 @@ describe('smoke: numbering is gapless under concurrency', () => {
 
   it('restarts the sequence when the scheme embeds a period that has rolled over', async () => {
     let now = new Date('2026-12-31T23:00:00.000Z')
-    const h = setupInvoices({ numberingScheme: 'INV-{YYYY}-{MM}-{SEQ:4}', clock: () => now })
+    const h = await setupInvoices({ numberingScheme: 'INV-{YYYY}-{MM}-{SEQ:4}', clock: () => now })
 
     const a = await issue({ customerId: 'u', lines: [line(100)] })
     const b = await issue({ customerId: 'u', lines: [line(100)] })
@@ -125,7 +125,7 @@ describe('smoke: a rolled-back insert does not burn a number', () => {
   it('leaves the sequence unchanged when the insert violates a unique constraint', async () => {
     // A slot that always returns the same number: the first insert succeeds and
     // the second violates invoice_number_key AFTER the number was allocated.
-    const h = setupInvoices({ slots: { numberingScheme: () => 'INV-2026-00001' } })
+    const h = await setupInvoices({ slots: { numberingScheme: () => 'INV-2026-00001' } })
 
     const first = await issue({ customerId: 'u', lines: [line(100)] })
     expect(first.number).toBe('INV-2026-00001')
@@ -142,7 +142,7 @@ describe('smoke: a rolled-back insert does not burn a number', () => {
   })
 
   it('leaves the sequence unchanged when a slot throws after allocation', async () => {
-    const h = setupInvoices({
+    const h = await setupInvoices({
       slots: {
         numberingScheme: () => {
           throw new Error('client numbering service unavailable')
@@ -158,7 +158,7 @@ describe('smoke: a rolled-back insert does not burn a number', () => {
 
   it('still issues consecutively after failures, so the ledger has no hole', async () => {
     let attempt = 0
-    const h = setupInvoices({
+    const h = await setupInvoices({
       slots: {
         numberingScheme: (ctx) => {
           attempt += 1
@@ -204,7 +204,7 @@ describe('the allocation is a single atomic statement', () => {
 describe('the numberingScheme slot cannot break gaplessness', () => {
   it('receives the allocated sequence and can only format it', async () => {
     const seen: number[] = []
-    const h = setupInvoices({
+    const h = await setupInvoices({
       slots: {
         numberingScheme: (ctx) => {
           seen.push(ctx.sequence)
@@ -223,7 +223,7 @@ describe('the numberingScheme slot cannot break gaplessness', () => {
   })
 
   it('is rejected when it returns an empty string', async () => {
-    setupInvoices({ slots: { numberingScheme: () => '   ' } })
+    await setupInvoices({ slots: { numberingScheme: () => '   ' } })
     await expect(issue({ customerId: 'u', lines: [line(100)] })).rejects.toThrow(/non-empty string/)
   })
 })
@@ -265,7 +265,7 @@ describe('the store itself behaves like Postgres', () => {
 
 describe('smoke: invoice issues and renders', () => {
   it('produces a numbered record and a rendered document', async () => {
-    const h = setupInvoices()
+    const h = await setupInvoices()
     const invoice = await issue({
       customerId: 'user_1',
       lines: [
