@@ -34,6 +34,7 @@ export {
   renderVersionToHtml,
   canonicalJson,
   helperTable,
+  selectedFormat,
   type RenderOptions,
   type RenderedBytes,
 } from './render.js'
@@ -88,13 +89,16 @@ export {
 // Slot types.
 export type {
   TemplateHelpersSlot,
+  TemplateHelpersContext,
   TemplateHelper,
+  HelperMap,
   BrandingOverrideSlot,
   BrandingContext,
   BrandingDecision,
   OutputFormatsSlot,
   OutputFormatContext,
   OutputFormatResult,
+  OutputFormatDecision,
   DocumentSlots,
   DocumentSlotsInput,
 } from './slots.js'

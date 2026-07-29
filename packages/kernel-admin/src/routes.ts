@@ -35,6 +35,7 @@ import {
   resolveDetailView,
   resolveFormView,
   resolveListView,
+  type AdminListView,
   type ResolveOptions,
 } from './resolve.js'
 import type { AdminSlots } from './slots.js'
@@ -60,7 +61,7 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-function listQuery(view: ReturnType<typeof resolveListView>, params: URLSearchParams): FindManyOptions {
+function listQuery(view: AdminListView, params: URLSearchParams): FindManyOptions {
   const where: Record<string, unknown> = {}
   for (const filter of view.filters) {
     const value = params.get(filter.field)
@@ -101,19 +102,21 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
   // Index: the console itself.
   if (entityName === undefined) {
     if (request.method !== 'GET') return methodNotAllowed()
-    return guarded(request.user, ADMIN_ACCESS, () =>
+    return guarded(request.user, ADMIN_ACCESS, async () =>
       json({
-        entities: adminEntities().map((registration) => {
-          const view = resolveListView(registration.name, options)
-          return {
-            entity: view.entity,
-            owner: view.owner,
-            label: view.label,
-            pluralLabel: view.pluralLabel,
-            path: view.path,
-            isClientEntity: view.isClientEntity,
-          }
-        }),
+        entities: await Promise.all(
+          adminEntities().map(async (registration) => {
+            const view = await resolveListView(registration.name, options)
+            return {
+              entity: view.entity,
+              owner: view.owner,
+              label: view.label,
+              pluralLabel: view.pluralLabel,
+              path: view.path,
+              isClientEntity: view.isClientEntity,
+            }
+          }),
+        ),
       }),
     )
   }
@@ -128,7 +131,7 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
   // /admin/<Entity>/export
   if (second === 'export' && request.method === 'GET') {
     return guarded(request.user, ADMIN_EXPORT, async () => {
-      const view = resolveListView(entityName, options)
+      const view = await resolveListView(entityName, options)
       const repository = await repositoryFor(entityName)
       const result = await repository.findMany({
         ...listQuery(view, params),
@@ -162,7 +165,7 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
   if (second === undefined) {
     if (request.method === 'GET') {
       return guarded(request.user, ADMIN_ACCESS, async () => {
-        const view = resolveListView(entityName, options)
+        const view = await resolveListView(entityName, options)
         const repository = await repositoryFor(entityName)
         const result = await repository.findMany(listQuery(view, params))
         return json({
@@ -182,9 +185,9 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
     }
     if (request.method === 'POST') {
       return guarded(request.user, ADMIN_ACCESS, async () => {
-        const view = resolveListView(entityName, options)
+        const view = await resolveListView(entityName, options)
         if (!view.canCreate) return methodNotAllowed('This entity is append-only.')
-        const form = resolveFormView(entityName, 'create', options)
+        const form = await resolveFormView(entityName, 'create', options)
         const repository = await repositoryFor(entityName)
         const created = await repository.create(pick(request.body, form.fields.map((f) => f.name)))
         return json(created, 201)
@@ -203,7 +206,7 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
 
   if (request.method === 'GET') {
     return guarded(request.user, ADMIN_ACCESS, async () => {
-      const view = resolveDetailView(entityName, options)
+      const view = await resolveDetailView(entityName, options)
       const repository = await repositoryFor(entityName)
       const row = await repository.find(id)
       if (row === undefined) throw new AdminNotFoundError(`${entityName} ${id} not found.`)
@@ -223,9 +226,9 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
 
   if (request.method === 'PATCH') {
     return guarded(request.user, ADMIN_ACCESS, async () => {
-      const view = resolveDetailView(entityName, options)
+      const view = await resolveDetailView(entityName, options)
       if (!view.canEdit) return methodNotAllowed('This entity is append-only.')
-      const form = resolveFormView(entityName, 'edit', options)
+      const form = await resolveFormView(entityName, 'edit', options)
       const repository = await repositoryFor(entityName)
       const updated = await repository.update(
         id,
@@ -237,7 +240,7 @@ export async function handleAdminRequest(request: AdminRequest): Promise<Respons
 
   if (request.method === 'DELETE') {
     return guarded(request.user, ADMIN_ACCESS, async () => {
-      const view = resolveDetailView(entityName, options)
+      const view = await resolveDetailView(entityName, options)
       if (!view.canDelete) return methodNotAllowed('This entity is append-only.')
       const repository = await repositoryFor(entityName)
       await repository.softDelete(id)

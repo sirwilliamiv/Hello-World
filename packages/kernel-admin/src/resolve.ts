@@ -34,6 +34,8 @@ import {
   identityCustomAdminView,
   identityEntityDisplayConfig,
   type AdminSlots,
+  type BulkActionSlotContext,
+  type CustomAdminViewContext,
   type CustomAdminViewProps,
 } from './slots.js'
 
@@ -268,10 +270,10 @@ export function allFields(
  * `entityDisplay` registry → the client's `entityDisplayConfig` slot. The
  * client wins, which is the same ordering as everywhere else in the system.
  */
-export function resolveDisplayConfig(
+export async function resolveDisplayConfig(
   descriptor: EntityDescriptor,
   slots: AdminSlots = {},
-): EntityDisplayConfig {
+): Promise<EntityDisplayConfig> {
   const contributed = entityDisplay.get(descriptor.name)
   const merged: EntityDisplayConfig = {
     ...(contributed ?? {}),
@@ -282,8 +284,56 @@ export function resolveDisplayConfig(
       entityPluralLabel(descriptor.name, descriptor.plural, contributed?.label),
   }
 
+  // Materialise the columns the generic path would show, so `proceed()` hands the
+  // slot the real list rather than `undefined`. A client that wants to move one
+  // column can then move it; before this, it had to guess the other nine.
+  const derived: EntityDisplayConfig = {
+    ...merged,
+    columns: orderedColumnFields(descriptor, merged).map(({ field, config }) => ({
+      ...(config ?? {}),
+      field: field.name,
+    })),
+  }
+
   const slot = slots.entityDisplayConfig ?? identityEntityDisplayConfig
-  return slot(descriptor.name, merged)
+  return slot({ entity: descriptor.name, config: derived, proceed: () => derived })
+}
+
+/** The context `customAdminView` is invoked with. `proceed()` keeps the generated view. */
+function customViewContext(
+  entity: string,
+  view: 'list' | 'detail' | 'create' | 'edit',
+): CustomAdminViewContext {
+  return { entity, view, proceed: () => null }
+}
+
+/** The context `bulkAction` is invoked with, carrying the contributed actions. */
+function bulkActionContext(entity: string): BulkActionSlotContext {
+  const actions = bulkActionsFor(entity)
+  return { entity, actions, proceed: () => actions }
+}
+
+/**
+ * The columns a resolved display config asks for, mapped back onto the entity's
+ * fields. The list is taken as given — {@link resolveDisplayConfig} has already
+ * derived it and the slot has already had its say — bar fields that do not exist
+ * or are hidden everywhere.
+ */
+function columnFieldsFor(
+  descriptor: EntityDescriptor,
+  display: EntityDisplayConfig,
+): readonly { field: EntityFieldDescriptor; config: ColumnConfig | undefined }[] {
+  if (display.columns === undefined) return orderedColumnFields(descriptor, display)
+
+  const fields = new Map(allFields(descriptor).map((f) => [f.name, f]))
+  const hidden = new Set(display.hiddenFields ?? [])
+  const out: { field: EntityFieldDescriptor; config: ColumnConfig | undefined }[] = []
+  for (const config of display.columns) {
+    const field = fields.get(config.field)
+    if (field === undefined || hidden.has(config.field) || config.hidden === true) continue
+    out.push({ field, config })
+  }
+  return out
 }
 
 function orderedColumnFields(
@@ -352,14 +402,17 @@ function descriptorFor(entity: string, options: ResolveOptions): EntityDescripto
   return descriptor
 }
 
-/** The list view for an entity. Pure. */
-export function resolveListView(entity: string, options: ResolveOptions = {}): AdminListView {
+/** The list view for an entity. A pure function of the registries and the slots. */
+export async function resolveListView(
+  entity: string,
+  options: ResolveOptions = {},
+): Promise<AdminListView> {
   const descriptor = descriptorFor(entity, options)
   const slots = options.slots ?? {}
-  const display = resolveDisplayConfig(descriptor, slots)
+  const display = await resolveDisplayConfig(descriptor, slots)
   const appendOnly = descriptor.appendOnly === true
 
-  const columns: AdminColumn[] = orderedColumnFields(descriptor, display).map(
+  const columns: AdminColumn[] = columnFieldsFor(descriptor, display).map(
     ({ field, config }) => ({
       ...toField(field, {
         readOnly: SYSTEM_FIELD_NAMES.has(field.name),
@@ -404,23 +457,23 @@ export function resolveListView(entity: string, options: ResolveOptions = {}): A
     filters,
     defaultSort: display.defaultSort ?? { field: 'createdAt', direction: 'desc' },
     pageSize: display.pageSize ?? DEFAULT_PAGE_SIZE,
-    bulkActions: bulkSlot(descriptor.name, bulkActionsFor(descriptor.name)),
+    bulkActions: await bulkSlot(bulkActionContext(descriptor.name)),
     canCreate: !appendOnly,
     canEdit: !appendOnly,
     canDelete: !appendOnly,
     exportFields: declared.filter((f) => !f.type.startsWith('refs:')).map((f) => f.name),
-    custom: customSlot(descriptor.name, 'list'),
+    custom: await customSlot(customViewContext(descriptor.name, 'list')),
   }
 }
 
-/** The detail view for an entity. Pure. */
-export function resolveDetailView(
+/** The detail view for an entity. A pure function of the registries and the slots. */
+export async function resolveDetailView(
   entity: string,
   options: ResolveOptions = {},
-): AdminDetailView {
+): Promise<AdminDetailView> {
   const descriptor = descriptorFor(entity, options)
   const slots = options.slots ?? {}
-  const display = resolveDisplayConfig(descriptor, slots)
+  const display = await resolveDisplayConfig(descriptor, slots)
   const appendOnly = descriptor.appendOnly === true
   const hidden = new Set(display.hiddenFields ?? [])
 
@@ -472,19 +525,19 @@ export function resolveDetailView(
     sections,
     canEdit: !appendOnly,
     canDelete: !appendOnly,
-    custom: customSlot(descriptor.name, 'detail'),
+    custom: await customSlot(customViewContext(descriptor.name, 'detail')),
   }
 }
 
-/** The create/edit form for an entity. Pure. */
-export function resolveFormView(
+/** The create/edit form for an entity. A pure function of the registries and the slots. */
+export async function resolveFormView(
   entity: string,
   mode: 'create' | 'edit',
   options: ResolveOptions = {},
-): AdminFormView {
+): Promise<AdminFormView> {
   const descriptor = descriptorFor(entity, options)
   const slots = options.slots ?? {}
-  const display = resolveDisplayConfig(descriptor, slots)
+  const display = await resolveDisplayConfig(descriptor, slots)
   const hidden = new Set(display.hiddenFields ?? [])
   const customSlot = slots.customAdminView ?? identityCustomAdminView
 
@@ -498,24 +551,24 @@ export function resolveFormView(
       .filter((f) => !f.type.startsWith('refs:'))
       .map((f) => toField(f, { readOnly: false })),
     permission: ADMIN_ACCESS,
-    custom: customSlot(descriptor.name, mode),
+    custom: await customSlot(customViewContext(descriptor.name, mode)),
   }
 }
 
 /** Every view for one entity. */
-export function resolveEntityViews(
+export async function resolveEntityViews(
   registration: AdminEntityRegistration,
   options: ResolveOptions = {},
-): AdminEntityViews {
+): Promise<AdminEntityViews> {
   const descriptor = descriptorFor(registration.name, options)
   return {
     registration,
     descriptor,
-    display: resolveDisplayConfig(descriptor, options.slots ?? {}),
-    list: resolveListView(registration.name, options),
-    detail: resolveDetailView(registration.name, options),
-    create: resolveFormView(registration.name, 'create', options),
-    edit: resolveFormView(registration.name, 'edit', options),
+    display: await resolveDisplayConfig(descriptor, options.slots ?? {}),
+    list: await resolveListView(registration.name, options),
+    detail: await resolveDetailView(registration.name, options),
+    create: await resolveFormView(registration.name, 'create', options),
+    edit: await resolveFormView(registration.name, 'edit', options),
   }
 }
 
@@ -527,8 +580,12 @@ export function resolveEntityViews(
  * work, then declaring an entity in the manifest genuinely buys an admin
  * surface.
  */
-export function resolveAdminConsole(options: ResolveOptions = {}): readonly AdminEntityViews[] {
-  return adminEntities().map((registration) => resolveEntityViews(registration, options))
+export async function resolveAdminConsole(
+  options: ResolveOptions = {},
+): Promise<readonly AdminEntityViews[]> {
+  return Promise.all(
+    adminEntities().map((registration) => resolveEntityViews(registration, options)),
+  )
 }
 
 /** As {@link resolveAdminConsole}, loading kernel.data's registry if needed. */

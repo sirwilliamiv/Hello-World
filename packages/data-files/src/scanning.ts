@@ -108,10 +108,13 @@ async function quarantine(fileId: string, reason: string, threat?: string): Prom
   })
 }
 
+/** What `ProcessingContext.proceed()` returns: no derived objects. */
+const NO_OUTPUTS: readonly ProcessingOutput[] = []
+
 async function runPipeline(file: FileRecord, bytes: Uint8Array): Promise<readonly ProcessingOutput[]> {
   const cfg = files()
   const pipeline = cfg.slots.processingPipeline
-  if (pipeline === undefined) return []
+  if (pipeline === undefined) return NO_OUTPUTS
 
   const repos = await repositories()
   const outputs = await pipeline({
@@ -125,6 +128,7 @@ async function runPipeline(file: FileRecord, bytes: Uint8Array): Promise<readonl
     enqueue: async (kind, payload) => {
       await repos.enqueue({ kind, payload: { ...payload, fileId: file.id } })
     },
+    proceed: () => NO_OUTPUTS,
   })
 
   for (const output of outputs) {

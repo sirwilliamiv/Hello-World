@@ -5,6 +5,14 @@
  *
  * Every slot is optional. The behaviour with no slot installed is the configured
  * behaviour, so a client that customises nothing still gets a working capability.
+ *
+ * Every context carries `proceed()`, returning exactly what the capability does with
+ * no slot implemented (schemas/capability.schema.json, `$defs.slot.signature`). That
+ * is what makes the seeded stub a correct one-liner:
+ *
+ *     export const allowedTypes: AllowedTypesSlot = async (ctx) => ctx.proceed()
+ *
+ * and what lets a client change one branch and defer on the rest.
  */
 import type { EntityAttachment, FileRecord } from './types.js'
 
@@ -27,6 +35,16 @@ export interface AllowedTypesContext {
   readonly configured: readonly string[]
   /** What the capability would decide on its own. */
   readonly allowedByConfig: boolean
+  /**
+   * The configured `allowedContentTypes` — exactly what is accepted with no slot
+   * installed. Return it to defer; return a subset to narrow, which is the case this
+   * slot mostly exists for:
+   *
+   *     ctx.attachedTo?.entity === 'Receipt'
+   *       ? ctx.proceed().filter((t) => t.startsWith('image/'))
+   *       : ctx.proceed()
+   */
+  proceed(): readonly string[]
 }
 
 export interface AllowedTypesDecision {
@@ -34,8 +52,22 @@ export interface AllowedTypesDecision {
   readonly reason?: string
 }
 
+/**
+ * A list of accepted content types — the upload is accepted when it names this
+ * upload's type — or an explicit decision when the client wants to say why.
+ */
+export type AllowedTypesResult = readonly string[] | AllowedTypesDecision
+
 /** "Client-specific content-type rules beyond the configured list." */
-export type AllowedTypesSlot = (ctx: AllowedTypesContext) => MaybePromise<AllowedTypesDecision>
+export type AllowedTypesSlot = (ctx: AllowedTypesContext) => MaybePromise<AllowedTypesResult>
+
+/** Normalises either shape into the decision the upload path acts on. */
+export function allowedTypesDecision(
+  result: AllowedTypesResult,
+  contentType: string,
+): AllowedTypesDecision {
+  return Array.isArray(result) ? { allow: result.includes(contentType) } : (result as AllowedTypesDecision)
+}
 
 // ── sizeLimits ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +79,8 @@ export interface SizeLimitsContext {
   readonly attachedTo: EntityAttachment | undefined
   /** `maxSizeBytes` from configuration. */
   readonly configuredMaxBytes: number
+  /** The configured `maxSizeBytes` — the ceiling that applies with no slot installed. */
+  proceed(): number
 }
 
 export interface SizeLimitsDecision {
@@ -55,8 +89,15 @@ export interface SizeLimitsDecision {
   readonly reason?: string
 }
 
+/** The effective ceiling, or a decision carrying the message to reject with. */
+export type SizeLimitsResult = number | SizeLimitsDecision
+
 /** "Client-specific size limits, usually per entity or per role." */
-export type SizeLimitsSlot = (ctx: SizeLimitsContext) => MaybePromise<SizeLimitsDecision>
+export type SizeLimitsSlot = (ctx: SizeLimitsContext) => MaybePromise<SizeLimitsResult>
+
+export function sizeLimitsDecision(result: SizeLimitsResult): SizeLimitsDecision {
+  return typeof result === 'number' ? { maxSizeBytes: result } : result
+}
 
 // ── processingPipeline ──────────────────────────────────────────────────────────
 
@@ -76,6 +117,12 @@ export interface ProcessingContext {
   write(kind: string, bytes: Uint8Array, contentType: string): Promise<string>
   /** Hand slow work to the durable queue rather than blocking the scan job. */
   enqueue(kind: string, payload: Record<string, unknown>): Promise<void>
+  /**
+   * No derived objects. The capability ships no pipeline of its own — a thumbnail
+   * of an arbitrary client's file is not something it can guess at — so the default
+   * is an empty list and `file.processed` is not published.
+   */
+  proceed(): readonly ProcessingOutput[]
 }
 
 /**
@@ -89,16 +136,24 @@ export type ProcessingPipelineSlot = (
 
 // ── retentionRules ──────────────────────────────────────────────────────────────
 
+export type RetentionDecision =
+  | { readonly action: 'keep' }
+  | { readonly action: 'delete'; readonly reason: string }
+
 export interface RetentionContext {
   readonly file: Readonly<FileRecord>
   /** Sweep time, injected rather than read from the clock, so sweeps are testable. */
   readonly now: Date
   readonly ageDays: number
+  /**
+   * Keep the file. The capability ships no retention policy — deleting a client's
+   * files on a guess is not a sensible default — so nothing expires until a slot
+   * says it does.
+   */
+  proceed(): RetentionDecision
+  /** Delete the file and its stored objects, recording `reason` on the cascade. */
+  expire(reason: string): RetentionDecision
 }
-
-export type RetentionDecision =
-  | { readonly action: 'keep' }
-  | { readonly action: 'delete'; readonly reason: string }
 
 /** "Client-specific retention and expiry." */
 export type RetentionRulesSlot = (ctx: RetentionContext) => MaybePromise<RetentionDecision>

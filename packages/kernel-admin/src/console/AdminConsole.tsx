@@ -57,8 +57,8 @@ function NotFound({ what }: { readonly what: string }) {
 }
 
 async function Index({ options }: { readonly options: ResolveOptions }) {
-  const views = adminEntities().map((registration) =>
-    resolveListView(registration.name, options),
+  const views = await Promise.all(
+    adminEntities().map((registration) => resolveListView(registration.name, options)),
   )
 
   return (
@@ -106,7 +106,7 @@ export async function AdminConsole({
   if (registration === undefined) return <NotFound what={`No admin surface for ${entityName}.`} />
 
   if (id === undefined) {
-    const view = resolveListView(entityName, options)
+    const view = await resolveListView(entityName, options)
     if (view.custom !== null) {
       const Custom = view.custom
       return (
@@ -135,7 +135,7 @@ export async function AdminConsole({
     )
   }
 
-  const view = resolveDetailView(entityName, options)
+  const view = await resolveDetailView(entityName, options)
   if (view.custom !== null) {
     const Custom = view.custom
     return (

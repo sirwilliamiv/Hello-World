@@ -108,8 +108,11 @@ export {
 export type {
   AdminSlots,
   BulkActionSlot,
+  BulkActionSlotContext,
+  CustomAdminViewContext,
   CustomAdminViewProps,
   CustomAdminViewSlot,
+  EntityDisplayConfigContext,
   EntityDisplayConfigSlot,
 } from './slots.js'
 

@@ -15,8 +15,12 @@ import { files } from './config.js'
 import { deleteFile } from './cascade.js'
 import { hardDelete, repositories } from './repositories.js'
 import { RETENTION_JOB_KIND } from './scanning.js'
+import type { RetentionDecision } from './slots.js'
 
 const DAY_MS = 86_400_000
+
+/** What `RetentionContext.proceed()` returns: the capability expires nothing itself. */
+const KEEP: RetentionDecision = { action: 'keep' }
 
 export interface RetentionSweepResult {
   readonly examined: number
@@ -57,6 +61,8 @@ export async function runRetentionSweep(
       file,
       now,
       ageDays: (now.getTime() - file.createdAt.getTime()) / DAY_MS,
+      proceed: () => KEEP,
+      expire: (reason: string) => ({ action: 'delete', reason }),
     })
     if (decision.action === 'delete') {
       await deleteFile(file.id, { cascadeSource: `retention:${decision.reason}` })

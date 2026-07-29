@@ -17,7 +17,7 @@ import { PdfEngineDisabledError, UnsupportedFormatError } from './errors.js'
 import { templateHelpers, useMoney } from './helpers.js'
 import { htmlToPdf } from './pdf.js'
 import { runtime } from './ports.js'
-import type { BrandingDecision, OutputFormatResult } from './slots.js'
+import { isOutputFormatResult, type BrandingDecision, type OutputFormatDecision } from './slots.js'
 import { documentShell } from './styling.js'
 import { compile, sortDeep, type HelperTable } from './template-engine.js'
 import { resolveTemplateVersion } from './templates.js'
@@ -33,10 +33,16 @@ export async function helperTable(): Promise<HelperTable> {
   const rt = await runtime()
   useMoney(rt.money)
 
+  // What every template has with no slot implemented, and what `proceed()` returns.
+  const registered = templateHelpers.all()
   const slot = documents().slots.templateHelpers
-  const contributed = slot === undefined ? {} : await slot()
-  // Client helpers are merged last so a client can override a built-in deliberately.
-  return { ...templateHelpers.all(), ...contributed }
+  if (slot === undefined) return registered
+
+  const contributed = await slot({ registered, proceed: () => registered })
+  // Client helpers are merged last so a client can override a built-in deliberately,
+  // and merged *over* the registry so returning only their own adds rather than
+  // silently removing `money` from every template in the product.
+  return { ...registered, ...contributed }
 }
 
 async function branding(
@@ -45,14 +51,20 @@ async function branding(
   format: DocumentFormat,
 ): Promise<BrandingDecision> {
   const cfg = documents()
+  // The application's own branding: the kernel.ui tokens, nothing appended.
+  const tokensOnly: BrandingDecision = { tokensHref: cfg.tokensHref }
+
   const slot = cfg.slots.brandingOverride
-  if (slot === undefined) return {}
+  if (slot === undefined) return tokensOnly
+  // Every argument is a pinned render input, so a reissue re-derives the same
+  // branding from the same document rather than from whatever is current.
   return slot({
     templateKey: template.key,
     templateVersion: version.version,
     format,
     pageSize: cfg.pageSize,
     tokensHref: cfg.tokensHref,
+    proceed: () => tokensOnly,
   })
 }
 
@@ -108,6 +120,13 @@ export interface RenderedBytes {
   readonly contentType: string
   readonly extension: string
   readonly html: string
+  /** The format actually written, after the `outputFormats` slot has had its say. */
+  readonly format: DocumentFormat
+}
+
+/** `requested ?? default_format` — what `OutputFormatContext.proceed()` returns. */
+export function selectedFormat(requested?: DocumentFormat): DocumentFormat {
+  return requested ?? documents().defaultFormat
 }
 
 /**
@@ -118,35 +137,63 @@ export async function renderToBytes(
   template: DocumentTemplate,
   version: TemplateVersion,
   data: unknown,
-  format: DocumentFormat,
+  requested?: DocumentFormat,
 ): Promise<RenderedBytes> {
   const cfg = documents()
-  const html = await renderVersionToHtml(template, version, data, { format })
+  const selected = selectedFormat(requested)
+  const html = await renderVersionToHtml(template, version, data, { format: selected })
 
   const slot = cfg.slots.outputFormats
-  if (slot !== undefined) {
-    const custom: OutputFormatResult | null = await slot({ format, html, templateVersion: version, data })
-    if (custom !== null) {
-      return {
-        bytes: custom.bytes,
-        contentType: custom.contentType,
-        extension: custom.extension,
-        html,
-      }
+  const decision: OutputFormatDecision =
+    slot === undefined
+      ? selected
+      : await slot({
+          format: selected,
+          requested,
+          configuredDefault: cfg.defaultFormat,
+          html,
+          templateKey: template.key,
+          templateVersion: version,
+          data,
+          proceed: () => selected,
+        })
+
+  if (isOutputFormatResult(decision)) {
+    return {
+      bytes: decision.bytes,
+      contentType: decision.contentType,
+      extension: decision.extension,
+      html,
+      // A client-written format is still a format: it is what the document records.
+      format: selected,
     }
   }
+
+  const format = decision
+  // A slot that switches the format switches the branding with it: `BrandingContext`
+  // is told which format it is styling, so the shell is re-rendered rather than
+  // shipped under a format it was not branded for.
+  const finalHtml =
+    format === selected ? html : await renderVersionToHtml(template, version, data, { format })
 
   if (format === 'html') {
     return {
-      bytes: new TextEncoder().encode(html),
+      bytes: new TextEncoder().encode(finalHtml),
       contentType: 'text/html; charset=utf-8',
       extension: 'html',
-      html,
+      html: finalHtml,
+      format,
     }
   }
   if (format === 'pdf') {
-    const pdf = await renderPdf(html)
-    return { bytes: new Uint8Array(pdf), contentType: 'application/pdf', extension: 'pdf', html }
+    const pdf = await renderPdf(finalHtml)
+    return {
+      bytes: new Uint8Array(pdf),
+      contentType: 'application/pdf',
+      extension: 'pdf',
+      html: finalHtml,
+      format,
+    }
   }
   throw new UnsupportedFormatError(format)
 }

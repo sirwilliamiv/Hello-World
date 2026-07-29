@@ -78,7 +78,7 @@ describe('outputFormats slot', () => {
                 contentType: 'text/plain; charset=utf-8',
                 extension: 'txt',
               }
-            : null,
+            : ctx.proceed(),
       },
     })
     await createTemplate({ key: 'invoice', name: 'Invoice', source: '<h1>{{ invoice.number }}</h1>' })

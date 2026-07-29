@@ -13,6 +13,12 @@ import { originalKey } from './keys.js'
 import { repositories } from './repositories.js'
 import { SCAN_JOB_KIND } from './scanning.js'
 import {
+  allowedTypesDecision,
+  sizeLimitsDecision,
+  type AllowedTypesResult,
+  type SizeLimitsResult,
+} from './slots.js'
+import {
   type FileRecord,
   type ServerFileInput,
   type UploadInput,
@@ -31,9 +37,9 @@ async function authoriseUpload(input: {
   const allowedByConfig = cfg.allowedContentTypes.includes(input.contentType)
 
   const typeSlot = cfg.slots.allowedTypes
-  const decision =
+  const typeResult: AllowedTypesResult =
     typeSlot === undefined
-      ? { allow: allowedByConfig }
+      ? cfg.allowedContentTypes
       : await typeSlot({
           filename: input.filename,
           contentType: input.contentType,
@@ -42,7 +48,9 @@ async function authoriseUpload(input: {
           attachedTo: input.attachedTo,
           configured: cfg.allowedContentTypes,
           allowedByConfig,
+          proceed: () => cfg.allowedContentTypes,
         })
+  const decision = allowedTypesDecision(typeResult, input.contentType)
 
   if (!decision.allow) {
     throw new UploadRejectedError(
@@ -52,9 +60,9 @@ async function authoriseUpload(input: {
   }
 
   const sizeSlot = cfg.slots.sizeLimits
-  const limit =
+  const sizeResult: SizeLimitsResult =
     sizeSlot === undefined
-      ? { maxSizeBytes: cfg.maxSizeBytes }
+      ? cfg.maxSizeBytes
       : await sizeSlot({
           filename: input.filename,
           contentType: input.contentType,
@@ -62,7 +70,9 @@ async function authoriseUpload(input: {
           user: input.user,
           attachedTo: input.attachedTo,
           configuredMaxBytes: cfg.maxSizeBytes,
+          proceed: () => cfg.maxSizeBytes,
         })
+  const limit = sizeLimitsDecision(sizeResult)
 
   if (input.sizeBytes <= 0) {
     throw new UploadRejectedError('An upload must declare a positive size in bytes.')
