@@ -6,14 +6,34 @@ import type { Session, User } from './types.js'
  * The generated stubs in `src/slots/kernel.identity/` import these types, so
  * they live here and upgrade with the package: a major version that changes a
  * signature breaks the client's build loudly and locally (ARCHITECTURE.md §4).
+ *
+ * Every slot takes a single context object, and that context exposes
+ * `proceed()`, returning whatever this capability would have done with no slot
+ * implemented (schemas/capability.schema.json, `$defs.slot.signature`). That is
+ * what lets Forge seed a stub which compiles and behaves correctly before
+ * anyone has written anything:
+ *
+ *     export const passwordPolicy: PasswordPolicySlot = async (ctx) => {
+ *       return ctx.proceed()
+ *     }
  */
 
-export interface OnRegistrationContext {
-  user: User
+/* ------------------------------------------------------------ onRegistration */
+
+export interface OnRegistrationInput {
+  readonly user: User
   /** Where the registration came from — 'self_service', an invite code, an IdP. */
-  source: string | null
+  readonly source: string | null
   /** Present when registration arrived over HTTP. */
-  request: Request | null
+  readonly request: Request | null
+}
+
+export interface OnRegistrationContext extends OnRegistrationInput {
+  /**
+   * Carry on as registration would have with no slot implemented: nothing
+   * happens between the user record being written and the welcome email.
+   */
+  proceed(): void
 }
 
 /**
@@ -24,33 +44,54 @@ export interface OnRegistrationContext {
  */
 export type OnRegistrationSlot = (ctx: OnRegistrationContext) => void | Promise<void>
 
-export interface PasswordPolicyContext {
-  password: string
-  email: string
+/* ------------------------------------------------------------ passwordPolicy */
+
+export interface PasswordPolicyInput {
+  readonly password: string
+  readonly email: string
   /** The user the password is being set for; null during registration. */
-  user: User | null
-  /** 'register' | 'reset' | 'change' */
-  reason: 'register' | 'reset' | 'change'
+  readonly user: User | null
+  readonly reason: 'register' | 'reset' | 'change'
 }
 
 export type PasswordPolicyResult = { ok: true } | { ok: false; reason: string }
+
+export interface PasswordPolicyContext extends PasswordPolicyInput {
+  /**
+   * The built-in policy's verdict on this password: length floor, the common
+   * password list, and the email-substring rule. That is what the capability
+   * decides with no slot implemented, and it is also the floor — the package
+   * applies it before the slot runs, so a slot can tighten it but not loosen
+   * it.
+   */
+  proceed(): PasswordPolicyResult
+}
 
 /** Runs on every password set or change. Client-specific complexity and reuse rules. */
 export type PasswordPolicySlot = (
   ctx: PasswordPolicyContext,
 ) => PasswordPolicyResult | Promise<PasswordPolicyResult>
 
-export interface PostLoginRedirectContext {
-  user: User
-  session: Session
+/* --------------------------------------------------------- postLoginRedirect */
+
+export interface PostLoginRedirectInput {
+  readonly user: User
+  readonly session: Session
   /** The `next` parameter of the login request, already same-origin checked. */
-  requested: string | null
+  readonly requested: string | null
+}
+
+export interface PostLoginRedirectContext extends PostLoginRedirectInput {
+  /** Where login sends a user with no slot implemented: `requested ?? '/'`. */
+  proceed(): string
 }
 
 /** Runs after a successful login. Where a user lands, which is usually role-dependent. */
 export type PostLoginRedirectSlot = (
   ctx: PostLoginRedirectContext,
 ) => string | Promise<string>
+
+/* --------------------------------------------------------------------------- */
 
 /** The slot namespace `authHandler` receives from the generated route. */
 export interface IdentitySlots {
@@ -76,10 +117,11 @@ export const MINIMUM_PASSWORD_LENGTH = 12
 
 /**
  * The policy applied when a client has not implemented `passwordPolicy`, and
- * the floor applied before any client policy runs.
+ * the floor applied before any client policy runs. `ctx.proceed()` returns
+ * exactly this.
  */
-export const defaultPasswordPolicy: PasswordPolicySlot = (ctx) => {
-  const password = ctx.password.normalize('NFKC')
+export function builtInPasswordPolicy(input: PasswordPolicyInput): PasswordPolicyResult {
+  const password = input.password.normalize('NFKC')
   if (password.length < MINIMUM_PASSWORD_LENGTH) {
     return { ok: false, reason: `Password must be at least ${MINIMUM_PASSWORD_LENGTH} characters.` }
   }
@@ -89,18 +131,46 @@ export const defaultPasswordPolicy: PasswordPolicySlot = (ctx) => {
   if (COMMON_PASSWORDS.has(password.toLowerCase())) {
     return { ok: false, reason: 'That password is too common.' }
   }
-  const local = ctx.email.split('@')[0] ?? ''
+  const local = input.email.split('@')[0] ?? ''
   if (local.length >= 3 && password.toLowerCase().includes(local.toLowerCase())) {
     return { ok: false, reason: 'Password must not contain your email address.' }
   }
   return { ok: true }
 }
 
-export const defaultOnRegistration: OnRegistrationSlot = () => {
-  // Nothing by default. The seeded stub is where client onboarding goes.
+/* ---------------------------------------------------------- context builders */
+
+/**
+ * The call sites in users.ts build their context through these, so each
+ * `proceed()` is defined once and cannot drift from the path taken when the
+ * slot is absent.
+ */
+
+export function onRegistrationContext(input: OnRegistrationInput): OnRegistrationContext {
+  return {
+    ...input,
+    proceed: (): void => {
+      // The default: no client-specific onboarding runs.
+    },
+  }
 }
 
-export const defaultPostLoginRedirect: PostLoginRedirectSlot = (ctx) => ctx.requested ?? '/'
+export function passwordPolicyContext(input: PasswordPolicyInput): PasswordPolicyContext {
+  return { ...input, proceed: () => builtInPasswordPolicy(input) }
+}
+
+export function postLoginRedirectContext(
+  input: PostLoginRedirectInput,
+): PostLoginRedirectContext {
+  return { ...input, proceed: () => input.requested ?? '/' }
+}
+
+/* ----------------------------------------------------------------- defaults */
+
+/** Identical to the seeded stub: carry on as the capability would have. */
+export const defaultOnRegistration: OnRegistrationSlot = (ctx) => ctx.proceed()
+export const defaultPasswordPolicy: PasswordPolicySlot = (ctx) => ctx.proceed()
+export const defaultPostLoginRedirect: PostLoginRedirectSlot = (ctx) => ctx.proceed()
 
 export function resolveSlots(slots: Partial<IdentitySlots> | undefined): IdentitySlots {
   return {

@@ -14,10 +14,13 @@ import { identityRuntime, repository } from './runtime.js'
 import { ENTITY } from './schema.js'
 import { endAllSessions, startSession } from './sessions.js'
 import {
-  defaultPasswordPolicy,
+  builtInPasswordPolicy,
+  onRegistrationContext,
+  passwordPolicyContext,
+  postLoginRedirectContext,
   resolveSlots,
   type IdentitySlots,
-  type PasswordPolicyContext,
+  type PasswordPolicyInput,
 } from './slots.js'
 import { generateToken, hashToken } from './tokens.js'
 import type {
@@ -38,13 +41,13 @@ export function normalizeEmail(email: string): string {
  */
 async function enforcePasswordPolicy(
   slots: Partial<IdentitySlots> | undefined,
-  context: PasswordPolicyContext,
+  input: PasswordPolicyInput,
 ): Promise<void> {
-  const floor = await defaultPasswordPolicy(context)
+  const floor = builtInPasswordPolicy(input)
   if (!floor.ok) throw new PasswordRejectedError(floor.reason)
-  const clientPolicy = slots?.passwordPolicy
-  if (clientPolicy === undefined) return
-  const result = await clientPolicy(context)
+  // The slot's `ctx.proceed()` returns that same built-in verdict, so the
+  // seeded stub reproduces the default path exactly.
+  const result = await resolveSlots(slots).passwordPolicy(passwordPolicyContext(input))
   if (!result.ok) throw new PasswordRejectedError(result.reason)
 }
 
@@ -114,11 +117,13 @@ export async function register(
     ...(input.source != null ? { source: input.source } : {}),
   })
 
-  await resolveSlots(slots).onRegistration({
-    user,
-    source: input.source ?? null,
-    request: input.request ?? null,
-  })
+  await resolveSlots(slots).onRegistration(
+    onRegistrationContext({
+      user,
+      source: input.source ?? null,
+      request: input.request ?? null,
+    }),
+  )
 
   const verification = await issueEmailVerification(user)
   return {
@@ -240,11 +245,13 @@ export async function login(
   }
 
   const started = await startSession({ user, ip, userAgent: input.userAgent ?? null })
-  const redirectTo = await resolveSlots(slots).postLoginRedirect({
-    user,
-    session: started.session,
-    requested: sameOriginPath(input.next ?? null),
-  })
+  const redirectTo = await resolveSlots(slots).postLoginRedirect(
+    postLoginRedirectContext({
+      user,
+      session: started.session,
+      requested: sameOriginPath(input.next ?? null),
+    }),
+  )
 
   return { user, session: started.session, token: started.token, redirectTo }
 }

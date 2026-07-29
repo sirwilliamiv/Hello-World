@@ -18,18 +18,25 @@ export { AccountSettings, type AccountSettingsProps } from './AccountSettings.js
 
 // ── slots (types imported by the generated stubs) ────────────────────────────
 export {
+  builtInPasswordPolicy,
   defaultOnRegistration,
   defaultPasswordPolicy,
   defaultPostLoginRedirect,
+  onRegistrationContext,
+  passwordPolicyContext,
+  postLoginRedirectContext,
   resolveSlots,
   MINIMUM_PASSWORD_LENGTH,
   type IdentitySlots,
   type OnRegistrationContext,
+  type OnRegistrationInput,
   type OnRegistrationSlot,
   type PasswordPolicyContext,
+  type PasswordPolicyInput,
   type PasswordPolicyResult,
   type PasswordPolicySlot,
   type PostLoginRedirectContext,
+  type PostLoginRedirectInput,
   type PostLoginRedirectSlot,
 } from './slots.js'
 

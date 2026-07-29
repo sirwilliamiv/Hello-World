@@ -209,3 +209,161 @@ describe('slots', () => {
     expect(response.status).toBe(422)
   })
 })
+
+/**
+ * schemas/capability.schema.json, `$defs.slot.signature`: every slot context
+ * exposes `proceed()`, returning what the capability would have done with no
+ * slot implemented. internal/render/render.go seeds exactly this body, so the
+ * stubs below are the literal generated text.
+ */
+describe('the proceed() contract', () => {
+  const handlerFor = (slots?: Partial<IdentitySlots>) => {
+    const raw = slots === undefined ? authHandler() : authHandler({ slots })
+    return (request: Request) => raw(request, { params: Promise.resolve({}) })
+  }
+
+  async function registerVerifyLogin(
+    handler: (request: Request) => Promise<Response>,
+    body: Record<string, unknown> = {},
+    login: Record<string, unknown> = {},
+  ): Promise<{ registration: Response; redirectTo: string }> {
+    const registration = await handler(
+      post('register', { email: EMAIL, password: PASSWORD, ...body }),
+    )
+    if (registration.status !== 201) return { registration, redirectTo: '' }
+    const { verification_token } = (await registration.clone().json()) as {
+      verification_token: string
+    }
+    await handler(post('verify-email', { token: verification_token }))
+    const loggedIn = await handler(
+      post('login', { email: EMAIL, password: PASSWORD, ...login }),
+    )
+    const { redirect_to } = (await loggedIn.json()) as { redirect_to: string }
+    return { registration, redirectTo: redirect_to }
+  }
+
+  describe('onRegistration', () => {
+    it('proceed() carries on exactly as no slot would: registration completes', async () => {
+      const calls: string[] = []
+      const onRegistration: OnRegistrationSlot = async (ctx) => {
+        calls.push(ctx.user.email)
+        return ctx.proceed()
+      }
+
+      const { registration } = await registerVerifyLogin(handlerFor({ onRegistration }))
+      expect(registration.status).toBe(201)
+      // proceed() is the no-op default: nothing happens between the user record
+      // and the welcome email, and the event stream is what it is without a slot.
+      expect(calls).toEqual([EMAIL])
+      expect(runtime.eventNames()).toContain('identity.user.created')
+    })
+
+    it('a slot that does more than proceed() changes the outcome', async () => {
+      const onRegistration: OnRegistrationSlot = () => {
+        throw new Error('invite code required')
+      }
+      await expect(
+        handlerFor({ onRegistration })(post('register', { email: EMAIL, password: PASSWORD })),
+      ).rejects.toThrow(/invite code required/)
+    })
+  })
+
+  describe('passwordPolicy', () => {
+    it('proceed() returns the built-in policy result', () => {
+      const ctx = passwordPolicyContext({
+        password: 'short',
+        email: EMAIL,
+        user: null,
+        reason: 'register',
+      })
+      expect(ctx.proceed()).toEqual(
+        builtInPasswordPolicy({
+          password: 'short',
+          email: EMAIL,
+          user: null,
+          reason: 'register',
+        }),
+      )
+      expect(ctx.proceed()).toEqual({
+        ok: false,
+        reason: `Password must be at least ${MINIMUM_PASSWORD_LENGTH} characters.`,
+      })
+      expect(
+        passwordPolicyContext({
+          password: PASSWORD,
+          email: EMAIL,
+          user: null,
+          reason: 'register',
+        }).proceed(),
+      ).toEqual({ ok: true })
+    })
+
+    it('the seeded stub behaves identically to no slot at all', async () => {
+      const passwordPolicy: PasswordPolicySlot = async (ctx) => {
+        return ctx.proceed()
+      }
+
+      // Accepted by the built-in policy, and by the stub.
+      expect((await handlerFor({ passwordPolicy })(
+        post('register', { email: EMAIL, password: PASSWORD }),
+      )).status).toBe(201)
+
+      // Rejected by the built-in policy, and by the stub, with its reason.
+      const weak = await handlerFor({ passwordPolicy })(
+        post('register', { email: 'grace@example.com', password: 'password' }),
+      )
+      expect(weak.status).toBe(422)
+      expect(((await weak.json()) as { message: string }).message).toBe(
+        `Password must be at least ${MINIMUM_PASSWORD_LENGTH} characters.`,
+      )
+    })
+
+    it('a slot that tightens proceed() changes the outcome', async () => {
+      const passwordPolicy: PasswordPolicySlot = async (ctx) => {
+        const builtIn = ctx.proceed()
+        if (!builtIn.ok) return builtIn
+        return ctx.password.includes('9') ? { ok: true } : { ok: false, reason: 'Needs a nine.' }
+      }
+      const rejected = await handlerFor({ passwordPolicy })(
+        post('register', { email: EMAIL, password: PASSWORD }),
+      )
+      expect(rejected.status).toBe(422)
+      expect(((await rejected.json()) as { message: string }).message).toBe('Needs a nine.')
+
+      expect((await handlerFor({ passwordPolicy })(
+        post('register', { email: EMAIL, password: `${PASSWORD}9` }),
+      )).status).toBe(201)
+    })
+  })
+
+  describe('postLoginRedirect', () => {
+    it('proceed() returns the requested path, or "/" when there is none', () => {
+      const base = { user: {} as never, session: {} as never }
+      expect(postLoginRedirectContext({ ...base, requested: null }).proceed()).toBe('/')
+      expect(postLoginRedirectContext({ ...base, requested: '/reports' }).proceed()).toBe(
+        '/reports',
+      )
+    })
+
+    it('the seeded stub lands a user where no slot would', async () => {
+      const postLoginRedirect: PostLoginRedirectSlot = async (ctx) => {
+        return ctx.proceed()
+      }
+      const withSlot = await registerVerifyLogin(handlerFor({ postLoginRedirect }))
+      expect(withSlot.redirectTo).toBe('/')
+
+      // The same handler with no slot at all agrees.
+      runtime = createTestRuntime()
+      setIdentityRuntime(runtime)
+      const without = await registerVerifyLogin(handlerFor())
+      expect(without.redirectTo).toBe(withSlot.redirectTo)
+    })
+
+    it('a slot returning something else changes where the user lands', async () => {
+      const postLoginRedirect: PostLoginRedirectSlot = async (ctx) =>
+        ctx.requested === null ? '/dashboard' : ctx.proceed()
+      const { redirectTo } = await registerVerifyLogin(handlerFor({ postLoginRedirect }))
+      expect(redirectTo).toBe('/dashboard')
+    })
+  })
+})
