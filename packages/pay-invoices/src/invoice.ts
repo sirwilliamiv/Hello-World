@@ -328,11 +328,8 @@ async function voidImpl(ref: InvoiceRef, reason: string): Promise<CreditNote> {
     })
     if (note === null) throw new Error(`credit note for invoice ${ref.id} could not be inserted`)
 
-    await tx.updateInvoiceBalance(row.id, {
-      creditedMinor: row.creditedMinor + outstanding,
-      status: 'void',
-      voidedAt: rt.clock(),
-    })
+    await tx.applyInvoiceDelta(row.id, 0, outstanding)
+    await tx.markInvoiceVoid(row.id, rt.clock())
 
     return note
   })

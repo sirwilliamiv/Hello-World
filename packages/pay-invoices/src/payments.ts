@@ -1,5 +1,4 @@
 import { requireInvoicesRuntime } from './config.js'
-import type { InvoiceRow } from './db/port.js'
 import {
   milestoneDuePayload,
   orderPlacedPayload,
@@ -41,14 +40,6 @@ import type {
  * index until the first commits, then finds the conflict and does nothing.
  */
 
-function nextStatus(row: InvoiceRow, paidMinor: number): InvoiceStatus {
-  if (row.status === 'void') return 'void'
-  const settled = paidMinor + row.creditedMinor
-  if (settled >= row.totalMinor) return 'paid'
-  if (settled > 0) return 'part_paid'
-  return 'open'
-}
-
 /** Resolves which invoice a payment belongs to, from the declared payload. */
 function invoiceIdFrom(payload: {
   metadata?: Record<string, string> | undefined
@@ -87,11 +78,9 @@ export async function applyPaymentToInvoice(
       return { applied: false as const, reason: 'already_applied' as const }
     }
 
-    const paidMinor = row.paidMinor + input.amountMinor
-    const updated = await tx.updateInvoiceBalance(row.id, {
-      paidMinor,
-      status: nextStatus(row, paidMinor),
-    })
+    // Relative, and the status is recomputed in the same statement, so two
+    // different charges applied concurrently cannot lose an update.
+    const updated = await tx.applyInvoiceDelta(row.id, input.amountMinor, 0)
 
     return {
       applied: true as const,
@@ -179,11 +168,7 @@ export async function creditOnRefund(event: EventEnvelope): Promise<CreditOnRefu
     })
     if (note === null) return { applied: false as const, reason: 'already_applied' as const }
 
-    const creditedMinor = row.creditedMinor + payload.amount_minor
-    await tx.updateInvoiceBalance(row.id, {
-      creditedMinor,
-      status: nextStatus({ ...row, creditedMinor }, row.paidMinor),
-    })
+    await tx.applyInvoiceDelta(row.id, 0, payload.amount_minor)
 
     return { applied: true as const, creditNoteId: note.id, invoiceId: row.id }
   })

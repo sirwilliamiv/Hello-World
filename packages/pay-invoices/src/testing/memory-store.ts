@@ -193,17 +193,37 @@ export class MemoryInvoiceStore implements InvoiceStore {
           (i) => (i.status === 'open' || i.status === 'part_paid') && i.dueAt.getTime() < asOf.getTime(),
         )
       },
-      async updateInvoiceBalance(id, patch) {
+      async applyInvoiceDelta(id, paidDelta, creditedDelta) {
         const idx = t.invoices.findIndex((i) => i.id === id)
         if (idx === -1) throw new Error(`no invoice ${id}`)
         const before = t.invoices[idx] as InvoiceRow
+        const paidMinor = before.paidMinor + paidDelta
+        const creditedMinor = before.creditedMinor + creditedDelta
+        const settled = paidMinor + creditedMinor
         const after: InvoiceRow = {
           ...before,
-          ...(patch.paidMinor === undefined ? {} : { paidMinor: patch.paidMinor }),
-          ...(patch.creditedMinor === undefined ? {} : { creditedMinor: patch.creditedMinor }),
-          ...(patch.status === undefined ? {} : { status: patch.status }),
-          ...(patch.voidedAt === undefined ? {} : { voidedAt: patch.voidedAt }),
+          paidMinor,
+          creditedMinor,
+          status:
+            before.status === 'void'
+              ? 'void'
+              : settled >= before.totalMinor
+                ? 'paid'
+                : settled > 0
+                  ? 'part_paid'
+                  : 'open',
         }
+        t.invoices[idx] = after
+        undo.push(() => {
+          t.invoices[idx] = before
+        })
+        return { ...after }
+      },
+      async markInvoiceVoid(id, voidedAt) {
+        const idx = t.invoices.findIndex((i) => i.id === id)
+        if (idx === -1) throw new Error(`no invoice ${id}`)
+        const before = t.invoices[idx] as InvoiceRow
+        const after: InvoiceRow = { ...before, status: 'void', voidedAt }
         t.invoices[idx] = after
         undo.push(() => {
           t.invoices[idx] = before
