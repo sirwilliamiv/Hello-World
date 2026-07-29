@@ -9,7 +9,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "drizzle-orm": "^0.44.0"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"

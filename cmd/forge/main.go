@@ -30,6 +30,7 @@ Usage:
   forge apply                       execute with confirmation
   forge drift                       report hand-edits to generated files
   forge eject <path> --reason "..." release one file from management
+  forge lint                        enforce "nothing undeclared" across capability packages
   forge catalog                     browse the capability catalog
   forge catalog show <id>           full specification including all interactions
   forge graph [-f forge.yaml]       render the resolved dependency graph
@@ -66,6 +67,8 @@ func main() {
 		code = cmdDrift(args)
 	case "eject":
 		code = cmdEject(args)
+	case "lint":
+		code = cmdLint(args)
 	case "catalog":
 		code = cmdCatalog(args)
 	case "graph":

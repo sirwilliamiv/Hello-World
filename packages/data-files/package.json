@@ -10,8 +10,20 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@forge/kernel-data": "workspace:*",
+    "@forge/kernel-events": "workspace:*",
     "@forge/kernel-identity": "workspace:*",
-    "@forge/ops-queue": "workspace:*"
+    "@forge/ops-queue": "workspace:*",
+    "drizzle-orm": "0.44.2",
+    "zod": "3.25.0"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
