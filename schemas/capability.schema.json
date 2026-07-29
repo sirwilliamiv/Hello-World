@@ -994,7 +994,7 @@
         "signature": {
           "type": "string",
           "minLength": 1,
-          "description": "The exported TypeScript type the stub implements. Lives in the npm package, so a major version changing it produces a compile error in the client repository — loud, local, and fixable."
+          "description": "The exported TypeScript type the stub implements. Lives in the npm package, so a major version changing it produces a compile error in the client repository — loud, local, and fixable. Its context parameter MUST expose `proceed()`, returning whatever the capability would have done with no slot implemented. That is what lets Forge seed a stub that compiles and behaves correctly before anyone has written anything, and it is what makes a slot a slot rather than an arbitrary callback: every slot has a meaningful 'carry on as you would have' default."
         },
         "description": {
           "type": "string",
