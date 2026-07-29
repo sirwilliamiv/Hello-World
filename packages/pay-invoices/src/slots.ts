@@ -4,6 +4,16 @@ import type { InvoiceInput, InvoiceLine } from './types.js'
 /**
  * Slot types for pay.invoices, matching `slots` in
  * catalog/pay/pay.invoices.capability.json.
+ *
+ * The types live in the package so they upgrade with it: a major version that
+ * changes a slot signature makes the client's seeded stub fail to compile, which
+ * is loud, local and fixable (ARCHITECTURE.md section 4).
+ *
+ * Every context carries `proceed()`, returning exactly what this capability does
+ * with no slot implemented (schemas/capability.schema.json, `$defs.slot.signature`).
+ * That is what lets Forge seed a stub that already compiles and already behaves:
+ *
+ *     export const paymentTerms: PaymentTermsSlot = async (ctx) => ctx.proceed()
  */
 
 export interface NumberingSchemeContext {
@@ -18,7 +28,17 @@ export interface NumberingSchemeContext {
   readonly issuedAt: Date
   readonly scheme: string
   readonly customerId: string
-  /** The number the configured token scheme would produce. */
+  /**
+   * The number the configured token scheme would produce — what the capability
+   * numbers this invoice when no slot is implemented.
+   *
+   * Deliberately nullary. It closes over the sequence value that
+   * `allocateInvoiceNumber` already returned in this transaction, so there is no
+   * parameter through which a slot could ask for a different one: `proceed()` can
+   * only render the allocated value, never re-allocate, skip, or reuse one.
+   */
+  proceed(): string
+  /** @deprecated Pre-`proceed()` name for the same thing. Use `proceed()`. */
   defaultNumber(): string
 }
 
@@ -34,6 +54,11 @@ export interface LineItemFormattingContext {
   readonly lines: readonly InvoiceLine[]
   readonly customerId: string
   readonly legalEntity: string
+  /**
+   * The lines exactly as stored, in position order — what is rendered when no
+   * slot is implemented.
+   */
+  proceed(): readonly InvoiceLine[]
 }
 
 /** Runs when invoice lines are rendered. Return the lines to render. */
@@ -48,7 +73,12 @@ export interface PaymentTermsContext {
   readonly input: InvoiceInput
   /** The configured `payment_terms_days`. */
   readonly defaultDays: number
-  /** The due date the configured terms would produce. */
+  /**
+   * The due date the configured `payment_terms_days` produces — issuedAt plus
+   * `defaultDays`, which is what the capability uses with no slot implemented.
+   */
+  proceed(): Date
+  /** @deprecated Pre-`proceed()` name for the same thing. Use `proceed()`. */
   defaultDueAt(): Date
 }
 

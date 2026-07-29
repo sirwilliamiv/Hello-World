@@ -137,13 +137,15 @@ async function resolveDueAt(
 
   if (rt.slots.paymentTerms === undefined) return addDays(defaultDays)
 
+  const defaultDueAt = (): Date => addDays(defaultDays)
   const ctx: PaymentTermsContext = {
     customerId: input.customerId,
     issuedAt,
     total: money(totalMinor, currency),
     input,
     defaultDays,
-    defaultDueAt: () => addDays(defaultDays),
+    proceed: defaultDueAt,
+    defaultDueAt,
   }
   const decided = await rt.slots.paymentTerms(ctx)
   if (typeof decided === 'number') {
@@ -199,6 +201,10 @@ async function allocateAndInsert(
       issuedAt: args.issuedAt,
       scheme: rt.scheme.scheme,
       customerId: args.customerId,
+      // Both close over `sequence`, the value THIS transaction already
+      // allocated. Neither takes a parameter, so `proceed()` renders the
+      // allocated number and cannot be used to obtain a different one.
+      proceed: defaultNumber,
       defaultNumber,
     }
     number = await rt.slots.numberingScheme(ctx)

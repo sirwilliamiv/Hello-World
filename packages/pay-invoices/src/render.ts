@@ -73,6 +73,9 @@ async function formatLines(invoice: Invoice): Promise<readonly InvoiceLine[]> {
     lines: invoice.lines,
     customerId: invoice.customerId,
     legalEntity: invoice.legalEntity,
+    // With no slot implemented the stored lines are rendered as they are, so
+    // that is what `proceed()` returns.
+    proceed: () => invoice.lines,
   })
 
   const before = invoice.lines.reduce((s, l) => s + minorOf(l.amount) + minorOf(l.tax), 0)
