@@ -15,6 +15,7 @@ import {
   publishTemplateVersion,
   reissue,
   renderHtml,
+  templateVersion,
 } from '../src/index.js'
 import { INVOICE_DATA, INVOICE_TEMPLATE, setupDocuments, type DocsHarness } from './harness.js'
 
@@ -147,5 +148,66 @@ describe('a template edit cannot reach a document that was already issued', () =
     expect(stillV1?.['source']).toBe('<p>v1</p>')
     expect(h.repos.versions.rows.size).toBe(2)
     expect(h.events.filter((e) => e.name === 'document.template.updated')).toHaveLength(2)
+  })
+})
+
+/**
+ * exposes: `templateVersion(template: TemplateRef): Promise<number>` — the version a
+ * render would use, readable *before* the render, so the caller states the version it
+ * wants instead of discovering the one it got.
+ */
+describe('templateVersion, read before rendering', () => {
+  it('reports the version a render would pin, without rendering anything', async () => {
+    const { template } = await createTemplate({
+      key: 'invoice',
+      name: 'Invoice',
+      source: '<p>v1 {{ invoice.number }}</p>',
+    })
+
+    expect(await templateVersion('invoice')).toBe(1)
+    await publishTemplateVersion(template.id, '<p>v2 {{ invoice.number }}</p>')
+    expect(await templateVersion('invoice')).toBe(2)
+
+    // Reading the version is not a render: nothing was issued and nothing was stored.
+    expect(h.repos.documents.rows.size).toBe(0)
+    expect(h.files.stored.size).toBe(0)
+
+    // A ref that already carries a version answers for that version, so the number is
+    // always the one *this* ref would render with.
+    expect(await templateVersion({ key: 'invoice', version: 1 })).toBe(1)
+    expect(await templateVersion({ id: template.id })).toBe(2)
+  })
+
+  it('lets a caller pin a version that an edit then overtakes', async () => {
+    const { template } = await createTemplate({
+      key: 'invoice',
+      name: 'Invoice',
+      source: INVOICE_TEMPLATE,
+    })
+
+    // The caller reads the version first, and passes it back as an explicit pin.
+    const pinned = await templateVersion('invoice')
+    expect(pinned).toBe(1)
+
+    // A redesign lands between the lookup and the render — the race the interface
+    // exists to close.
+    await publishTemplateVersion(template.id, '<h1>Redesigned</h1>')
+
+    const issued = await generate('invoice', INVOICE_DATA, {
+      subjectRef: 'Invoice:inv-42',
+      templateVersion: pinned,
+    })
+    expect(issued.templateVersion).toBe(1)
+    expect(Buffer.from(h.files.bytesOf(issued.fileId as string)).toString('utf8')).toContain(
+      'INV-2026-00042',
+    )
+
+    // Without the pin the same call would have used the redesign.
+    expect((await generate('invoice', INVOICE_DATA, { subjectRef: 'Invoice:inv-43' }))
+      .templateVersion).toBe(2)
+  })
+
+  it('refuses a template that does not exist rather than inventing a version', async () => {
+    await expect(templateVersion('nope')).rejects.toThrow()
   })
 })
