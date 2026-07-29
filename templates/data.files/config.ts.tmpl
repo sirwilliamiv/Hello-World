@@ -7,7 +7,7 @@ configureFiles({
   bucket: env.STORAGE_BUCKET,
   credentials: env.STORAGE_CREDENTIALS,
   maxSizeBytes: {{ cfg .Config "max_size_bytes" 26214400 }},
-  allowedContentTypes: {{ cfg .Config "allowed_content_types" (dict) | json }},
+  allowedContentTypes: {{ cfg .Config "allowed_content_types" (list) | json }},
   // A file is quarantined until it clears scanning; file.uploaded is published
   // only after it does, so no consumer ever sees an unscanned object.
   scanPolicy: {{ cfgStr .Config "scan_policy" "require_clean" | quote }},

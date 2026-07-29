@@ -58,6 +58,11 @@ func funcs() template.FuncMap {
 		"sqlType": sqlType,
 		// tsType maps a manifest field type to a TypeScript type.
 		"tsType": tsType,
+		// list gives array-typed config a correctly-typed fallback. `dict` was
+		// being used for this, which would render `{}` for an array field if a
+		// capability ever declared one without a default — the merged spec
+		// default hides it today, so it is a trap rather than a live bug.
+		"list": func(items ...any) []any { return items },
 		"dict": func(pairs ...any) (map[string]any, error) {
 			if len(pairs)%2 != 0 {
 				return nil, fmt.Errorf("dict requires an even number of arguments")
