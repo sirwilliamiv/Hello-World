@@ -34,10 +34,15 @@ describe('production statements', () => {
     const owned = new Set(['charge', 'refund', 'payment_method'])
     const referenced = new Set<string>()
     for (const statement of Object.values(SQL)) {
-      for (const m of statement.matchAll(/\b(?:FROM|INTO|UPDATE|JOIN)\s+(\w+)/g)) {
+      // `DO UPDATE SET` is the upsert conflict action, not a table reference —
+      // fold it away first so the scan below sees only real table positions.
+      const tablePositions = statement.replace(/\bDO\s+UPDATE\s+SET\b/gi, 'DO_UPDATE_SET')
+      for (const m of tablePositions.matchAll(/\b(?:FROM|INTO|UPDATE|JOIN)\s+(\w+)/g)) {
         referenced.add(m[1] as string)
       }
     }
+    // Guards the scan itself: a regex that matched nothing would pass vacuously.
+    expect([...referenced].sort()).toEqual(['charge', 'payment_method', 'refund'])
     for (const table of referenced) {
       expect(owned.has(table), `${table} is not owned by pay.card`).toBe(true)
     }

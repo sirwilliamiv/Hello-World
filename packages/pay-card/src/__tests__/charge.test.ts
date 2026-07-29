@@ -3,7 +3,7 @@ import { Money } from '@forge/kernel-money'
 import { charge, refund } from '../charge.js'
 import { ChargeFailedError, ChargeRejectedError, CurrencyNotAllowedError } from '../errors.js'
 import { requiresApproval } from '../agent.js'
-import { bus, identity, setupPayments } from '../testing/harness.js'
+import { asUser, bus, setupPayments } from '../testing/harness.js'
 import { loadCapability, publishedPayloadSchema, validateAgainstSchema } from '../testing/json-schema.js'
 
 const spec = loadCapability('catalog/pay/pay.card.capability.json')
@@ -11,9 +11,10 @@ const spec = loadCapability('catalog/pay/pay.card.capability.json')
 describe('smoke: test-mode charge succeeds', () => {
   it('charges a test card and publishes payment.succeeded', async () => {
     const h = setupPayments()
-    identity.setCurrentUser({ id: 'user_1', email: 'buyer@example.test' })
 
-    const result = await charge(Money.of(4999, 'USD'), { id: 'user_1' }, { invoiceId: 'inv_1' })
+    const result = await asUser({ id: 'user_1', email: 'buyer@example.test' }, () =>
+      charge(Money.of(4999, 'USD'), { id: 'user_1' }, { invoiceId: 'inv_1' }),
+    )
 
     expect(result.status).toBe('succeeded')
     expect(result.amount.amountMinor).toBe(4999)
@@ -116,7 +117,10 @@ describe('charge validation', () => {
 
   it('rejects a non-integer amount before the provider is called', async () => {
     const h = setupPayments()
-    const bogus = { minor: 19.99, currency: 'USD' } as unknown as Money
+    // Shaped like kernel.money's Money (`amountMinor` + `currency`) but carrying
+    // a float, which is what a hand-rolled amount from client code looks like.
+    // Money.of would refuse to build this; charge() must refuse to forward it.
+    const bogus = { amountMinor: 19.99, currency: 'USD' } as unknown as Money
     await expect(charge(bogus, { id: 'user_1' })).rejects.toThrow(/integer/i)
     expect(h.stripe.calls).toHaveLength(0)
   })

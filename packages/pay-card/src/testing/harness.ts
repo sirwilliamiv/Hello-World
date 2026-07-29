@@ -1,26 +1,64 @@
-import * as kernelEvents from '@forge/kernel-events'
-import * as kernelIdentity from '@forge/kernel-identity'
+import {
+  InMemoryEventStore,
+  clearEventSchemas,
+  configureEventBus,
+  resetEventBus,
+  type EventEnvelope,
+} from '@forge/kernel-events'
+import {
+  resetIdentityConfig,
+  runWithIdentityContext,
+  type Authentication,
+  type Session,
+  type User,
+} from '@forge/kernel-identity'
 import { configurePayments, __resetPaymentsForTests } from '../config.js'
+import { registerPayCardEventSchemas } from '../events.js'
 import type { PaymentSlots } from '../slots.js'
 import { FakeStripe } from './fake-stripe.js'
 import { MemoryPaymentStore } from './memory-store.js'
 
+/**
+ * The test harness runs pay.card against the REAL kernel packages.
+ *
+ * Only two things are stood in for, and neither is a capability we could use for
+ * real in a unit test: Stripe (no network, and the signature scheme has to be
+ * reproduced faithfully — see fake-stripe.ts) and Postgres (see memory-store.ts).
+ *
+ * kernel.events is the real bus, configured through the real `EventStore` port so
+ * that "what was published" is read out of the event log rather than out of a
+ * recorder invented for the tests — which also means an event whose payload does
+ * not satisfy its registered contract never appears there at all.
+ *
+ * kernel.identity is the real context: `asUser` establishes an authenticated
+ * request the way `AuthGuard` does.
+ */
+
 export const TEST_SECRET_KEY = 'sk_test_forge_phase1'
 export const TEST_WEBHOOK_SECRET = 'whsec_forge_phase1'
 
-interface BusHelpers {
-  published(name?: string): { name: string; payload: unknown }[]
-  resetEvents(): void
-  subscribe(pattern: string, handler: (e: { name: string; payload: unknown }) => Promise<void>): void
+/**
+ * The real in-memory event store, plus a synchronous view of the log. `append`
+ * is what the bus calls before delivery, so this is exactly the set of events
+ * kernel.events accepted, schema-validated and in publication order.
+ */
+class EventLogStore extends InMemoryEventStore {
+  readonly log: EventEnvelope[] = []
+
+  override async append(event: EventEnvelope): Promise<void> {
+    this.log.push(event)
+    await super.append(event)
+  }
 }
 
-/** Available when kernel.events is the in-process double; see vitest.config.ts. */
-export const bus = kernelEvents as unknown as BusHelpers
+let eventLog = new EventLogStore()
 
-interface IdentityHelpers {
-  setCurrentUser(user: { id: string; email: string } | null): void
+export const bus = {
+  /** Events kernel.events accepted, in order, optionally filtered by name. */
+  published(name?: string): EventEnvelope[] {
+    return name === undefined ? [...eventLog.log] : eventLog.log.filter((e) => e.name === name)
+  },
 }
-export const identity = kernelIdentity as unknown as IdentityHelpers
 
 export interface Harness {
   readonly stripe: FakeStripe
@@ -31,8 +69,18 @@ let ids = 0
 
 export function setupPayments(slots: PaymentSlots = {}): Harness {
   __resetPaymentsForTests()
-  bus.resetEvents()
-  identity.setCurrentUser(null)
+
+  // A fresh bus: no subscriptions carried over, a fresh event log, and the four
+  // pay.card contracts registered as the generated wiring registers them.
+  resetEventBus()
+  clearEventSchemas()
+  registerPayCardEventSchemas()
+  eventLog = new EventLogStore()
+  configureEventBus({ store: eventLog })
+
+  // No ambient identity unless a test establishes one with `asUser`.
+  resetIdentityConfig()
+
   ids = 0
 
   const stripe = new FakeStripe({ webhookSecret: TEST_WEBHOOK_SECRET })
@@ -54,6 +102,62 @@ export function setupPayments(slots: PaymentSlots = {}): Harness {
   })
 
   return { stripe, store }
+}
+
+const IDENTITY_EPOCH = new Date('2026-06-01T00:00:00.000Z')
+
+function testUser(id: string, email: string): User {
+  return {
+    id,
+    email,
+    name: null,
+    emailVerifiedAt: IDENTITY_EPOCH,
+    disabledAt: null,
+    anonymizedAt: null,
+    createdAt: IDENTITY_EPOCH,
+    updatedAt: IDENTITY_EPOCH,
+    deletedAt: null,
+  }
+}
+
+function testSession(user: User): Session {
+  return {
+    id: `ses_${user.id}`,
+    userId: user.id,
+    tokenHash: `hash_${user.id}`,
+    expiresAt: new Date('2099-01-01T00:00:00.000Z'),
+    revokedAt: null,
+    revokedReason: null,
+    ip: null,
+    userAgent: null,
+    lastSeenAt: IDENTITY_EPOCH,
+    createdAt: IDENTITY_EPOCH,
+    updatedAt: IDENTITY_EPOCH,
+    deletedAt: null,
+  }
+}
+
+/**
+ * Run `fn` as an authenticated caller, through kernel.identity's own request
+ * context. The authentication is pre-resolved on the context exactly as
+ * `currentAuthentication()` memoises it after the first lookup in a request, so
+ * `currentUser()` inside `fn` is the real implementation reading the real
+ * AsyncLocalStorage — no session store and no identity stand-in involved.
+ */
+export function asUser<T>(
+  user: { readonly id: string; readonly email: string },
+  fn: () => Promise<T>,
+): Promise<T> {
+  const authenticated = testUser(user.id, user.email)
+  const resolved: Authentication = {
+    user: authenticated,
+    session: testSession(authenticated),
+  }
+
+  return runWithIdentityContext(
+    { sessionToken: null, request: null, resolved, didResolve: true },
+    fn,
+  )
 }
 
 /** Builds a `Request` for the webhook route with a valid Stripe signature. */
