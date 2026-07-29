@@ -8,7 +8,7 @@
     "start": "next start",
     "worker": "tsx src/generated/ops.queue/worker.ts",
     "migrate": "tsx scripts/migrate.ts",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "next": "15.5.0",

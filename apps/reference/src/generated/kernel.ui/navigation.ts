@@ -6,7 +6,7 @@
 // │ customise via the dashboardWidgets, logo, navigationOrder, theme slot(s) instead│
 // └───────────────────────────────────────────────────────────────────┘
 
-import { registerNavItem } from '@forge/kernel-ui'
+import { registerNavItems } from '@forge/kernel-ui'
 import { navigationOrder } from '@/slots/kernel.ui/navigationOrder'
 
 // Navigation resolved from the surfaces declared across the graph, then passed
@@ -22,4 +22,7 @@ const items = [
   { label: "Account", path: "/account", group: "settings", order: 100 },
 ]
 
-for (const item of navigationOrder(items)) registerNavItem(item)
+// registerNavItems hands the slot a context carrying proceed(), rather than
+// calling it positionally. It resolves internally so this file needs no
+// top-level await even though the seeded stub is async.
+registerNavItems(items, navigationOrder)

@@ -2,7 +2,7 @@
   "state_version": 1,
   "workspace": "reference/development",
   "forge_version": "0.1.0",
-  "serial": 4,
+  "serial": 5,
   "manifest_hash": "sha256:339ec058da5fd2fc58ee7c0d784a33b959c0e13d0a148d5a2b68aacca46718ca",
   "catalog_snapshot": "2026-07-15",
   "lock": {
@@ -153,7 +153,7 @@
       "capability": "\u003cproduct\u003e",
       "template": "package.json",
       "template_version": "1.0.0",
-      "generated_hash": "sha256:6e48cdfdea12f1695dc110a30eec7f1ac85f40317a0986427796f761e15887ec",
+      "generated_hash": "sha256:ee4c8945bd46f442a245b86e42bf79e62e663bf617b8a398ac3e6594c60d8ee5",
       "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
     },
     {
@@ -297,7 +297,7 @@
       "capability": "\u003cgraph\u003e",
       "template": "navigation.ts",
       "template_version": "1.0.0",
-      "generated_hash": "sha256:e88d7836fffc580c50a58c8156acc6a7cc8a55a08aa50c7540aa7d0638a18f8c",
+      "generated_hash": "sha256:a4cb5e2c12d51b634a58bd36dfc996edc28d60eb045966c0132ced0d19062556",
       "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d"
     },
     {
