@@ -44,8 +44,8 @@ describe('contract: pay.invoices × pay.card (consumer side)', () => {
 
     expect(result.applied).toBe(true)
     expect(result.invoice?.status).toBe('paid')
-    expect(result.invoice?.paid.minor).toBe(25_000)
-    expect(result.invoice?.outstanding.minor).toBe(0)
+    expect(result.invoice?.paid.amountMinor).toBe(25_000)
+    expect(result.invoice?.outstanding.amountMinor).toBe(0)
     expect(result.receipt?.chargeId).toBe('chg_1')
     expect(h.store.state.receipts).toHaveLength(1)
 

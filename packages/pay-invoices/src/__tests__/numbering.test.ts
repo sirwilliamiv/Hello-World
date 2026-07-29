@@ -279,8 +279,8 @@ describe('smoke: invoice issues and renders', () => {
     expect(invoice.status).toBe('open')
     expect(invoice.lines).toHaveLength(2)
     // 3333 x 2.5 = 8332.5, rounded half-up to 8333 minor units. No float.
-    expect(invoice.lines[1]?.amount.minor).toBe(8333)
-    expect(invoice.total.minor).toBe(158_333)
+    expect(invoice.lines[1]?.amount.amountMinor).toBe(8333)
+    expect(invoice.total.amountMinor).toBe(158_333)
     expect(invoice.dueAt.toISOString()).toBe('2026-07-31T09:00:00.000Z')
 
     expect(docs.renderCount()).toBe(1)

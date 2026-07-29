@@ -101,7 +101,8 @@ function identifier(name: string): SQL {
   if (!IDENTIFIER.test(lowered)) {
     throw new Error(`refusing to build SQL with the identifier ${JSON.stringify(name)}`)
   }
-  return sql.identifier(lowered)
+  // sql.identifier returns Name; wrap it so the declared SQL return type holds.
+  return sql`${sql.identifier(lowered)}`
 }
 
 function whereClause(where: Predicate): SQL {

@@ -21,8 +21,8 @@ importers:
         specifier: 3.2.0
         version: 3.2.0(@types/node@22.15.0)
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/data-files:
     dependencies:
@@ -45,8 +45,8 @@ importers:
         specifier: '>=19'
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/docs-generation:
     dependencies:
@@ -75,8 +75,8 @@ importers:
         specifier: '>=19'
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/kernel-access:
     dependencies:
@@ -108,8 +108,8 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
     devDependencies:
       '@types/react':
         specifier: 19.1.0
@@ -127,8 +127,8 @@ importers:
         specifier: ^3.4.0
         version: 3.4.5
       zod:
-        specifier: ^3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/kernel-events:
     dependencies:
@@ -139,8 +139,8 @@ importers:
         specifier: ^3.4.0
         version: 3.4.5
       zod:
-        specifier: ^3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/kernel-identity:
     dependencies:
@@ -157,8 +157,8 @@ importers:
         specifier: '>=19'
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/kernel-mail:
     dependencies:
@@ -166,8 +166,8 @@ importers:
         specifier: workspace:*
         version: link:../kernel-work
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/kernel-money:
     dependencies:
@@ -187,8 +187,8 @@ importers:
         specifier: ^19.0.0
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
     devDependencies:
       '@types/react':
         specifier: 19.1.0
@@ -218,8 +218,8 @@ importers:
         specifier: '>=19'
         version: 19.2.8
       zod:
-        specifier: 3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/pay-card:
     dependencies:
@@ -245,8 +245,8 @@ importers:
         specifier: ^18.0.0
         version: 18.5.0(@types/node@22.15.0)
       zod:
-        specifier: ^3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
   packages/pay-invoices:
     dependencies:
@@ -265,12 +265,15 @@ importers:
       drizzle-orm:
         specifier: ^0.44.0
         version: 0.44.2(postgres@3.4.5)
+      postgres:
+        specifier: 3.4.5
+        version: 3.4.5
       react:
         specifier: ^19.0.0
         version: 19.2.8
       zod:
-        specifier: ^3.25.0
-        version: 3.25.0
+        specifier: 3.23.8
+        version: 3.23.8
 
 packages:
 
@@ -1036,8 +1039,8 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
-  zod@3.25.0:
-    resolution: {integrity: sha512-ficnZKUW0mlNivqeJkosTEkGbJ6NKCtSaOHGx5aXbtfeWMdRyzXLbAIn19my4C/KB7WPY/p9vlGPt+qpOp6c4Q==}
+  zod@3.23.8:
+    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
 
 snapshots:
 
@@ -1599,4 +1602,4 @@ snapshots:
       siginfo: 2.0.0
       stackback: 0.0.2
 
-  zod@3.25.0: {}
+  zod@3.23.8: {}

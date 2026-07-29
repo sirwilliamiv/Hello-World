@@ -70,7 +70,7 @@ describe('InvoiceList', () => {
     InvoiceList({
       invoices: [invoice()],
       formatMoney: (m) => {
-        seen.push((m as unknown as { minor: number }).minor)
+        seen.push((m as unknown as { minor: number }).amountMinor)
         return 'formatted'
       },
     })

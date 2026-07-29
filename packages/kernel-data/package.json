@@ -13,7 +13,7 @@
     "@forge/kernel-events": "workspace:*",
     "drizzle-orm": "^0.44.0",
     "postgres": "^3.4.0",
-    "zod": "^3.25.0"
+    "zod": "3.23.8"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

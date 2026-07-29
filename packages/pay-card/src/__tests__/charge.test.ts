@@ -16,7 +16,7 @@ describe('smoke: test-mode charge succeeds', () => {
     const result = await charge(Money.of(4999, 'USD'), { id: 'user_1' }, { invoiceId: 'inv_1' })
 
     expect(result.status).toBe('succeeded')
-    expect(result.amount.minor).toBe(4999)
+    expect(result.amount.amountMinor).toBe(4999)
     expect(result.externalId).toMatch(/^pi_test_/)
     expect(h.store.state.charges).toHaveLength(1)
 
@@ -139,7 +139,7 @@ describe('refund', () => {
     const c = await charge(Money.of(2000, 'USD'), { id: 'user_1' })
     const r = await refund({ id: c.id })
 
-    expect(r.amount.minor).toBe(2000)
+    expect(r.amount.amountMinor).toBe(2000)
     const events = bus.published('payment.refunded')
     expect(events).toHaveLength(1)
     expect(

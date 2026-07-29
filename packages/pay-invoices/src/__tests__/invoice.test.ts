@@ -82,9 +82,9 @@ describe('issue', () => {
       customerId: 'user_1',
       lines: [{ description: 'a', unitAmount: Money.of(10_000, 'USD'), taxAmount: Money.of(2_000, 'USD') }],
     })
-    expect(invoice.subtotal.minor).toBe(10_000)
-    expect(invoice.tax.minor).toBe(2_000)
-    expect(invoice.total.minor).toBe(12_000)
+    expect(invoice.subtotal.amountMinor).toBe(10_000)
+    expect(invoice.tax.amountMinor).toBe(2_000)
+    expect(invoice.total.amountMinor).toBe(12_000)
   })
 })
 
@@ -128,13 +128,13 @@ describe('void', () => {
 
     const note = await voidInvoice({ id: invoice.id }, 'duplicate of INV-2026-00007')
 
-    expect(note.amount.minor).toBe(40_000)
+    expect(note.amount.amountMinor).toBe(40_000)
     expect(note.reason).toBe('duplicate of INV-2026-00007')
 
     const after = await getInvoice(invoice.id)
     expect(after?.status).toBe('void')
     expect(after?.number).toBe('INV-2026-00001')
-    expect(after?.total.minor).toBe(40_000) // amounts are never edited
+    expect(after?.total.amountMinor).toBe(40_000) // amounts are never edited
     expect(h.store.state.creditNotes).toHaveLength(1)
 
     const voided = bus.published('invoice.voided')

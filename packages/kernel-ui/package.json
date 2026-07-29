@@ -14,7 +14,7 @@
     "./styles/components.css": "./src/styles/components.css"
   },
   "dependencies": {
-    "zod": "3.25.0"
+    "zod": "3.23.8"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
