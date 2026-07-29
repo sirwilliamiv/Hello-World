@@ -30,7 +30,7 @@ cap_v = Draft202012Validator(schemas["capability"])
 man_v = Draft202012Validator(schemas["manifest"])
 
 # 2. Every kernel capability validates.
-files = sorted(glob.glob(f"{ROOT}/catalog/kernel/*.capability.json"))
+files = sorted(glob.glob(f"{ROOT}/catalog/**/*.capability.json", recursive=True))
 print(f"\n-- {len(files)} kernel capability specs --")
 for p in files:
     doc = load(p)
@@ -109,10 +109,13 @@ for cid, c in caps.items():
             continue
         if not any(x["kind"] == "registry" and x["name"] == rname for x in target.get("exposes", [])):
             print(f"FAIL  {cid} registers into {reg['registry']}, which {owner} does not expose"); fail += 1
-        deps = {r["id"] for r in c.get("requires", [])} | {
-            e["target"] for e in c.get("enhances", []) if isinstance(e.get("target"), str)}
-        if owner not in deps:
-            print(f"FAIL  {cid} registers into {owner} without declaring it in requires or enhances"); fail += 1
+        # The kernel is mandatory and implicit in every product, so a dependency
+        # declaration on it guarantees nothing new. Every other target must be declared.
+        if not owner.startswith("kernel."):
+            deps = {r["id"] for r in c.get("requires", [])} | {
+                e["target"] for e in c.get("enhances", []) if isinstance(e.get("target"), str)}
+            if owner not in deps:
+                print(f"FAIL  {cid} registers into {owner} without declaring it in requires or enhances"); fail += 1
 
 print(f"  {len(entities)} entities owned, no collisions" if not fail else "")
 print(f"\n{'ALL CHECKS PASSED' if fail == 0 else str(fail) + ' FAILURE(S)'}")

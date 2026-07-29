@@ -1,0 +1,149 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "data.files",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Files and Photos",
+  "tier": "capability",
+  "trigger": "Your business runs on documents, site photos, or uploads that need to be stored securely and found later.",
+  "price": { "model": "fixed", "amount_minor": 400000, "currency": "USD" },
+  "integration_weight": 2,
+  "summary": "Direct-to-storage upload with signed URLs. Virus scanning before a file becomes accessible is not optional in any product where customers upload documents: an uploaded file is quarantined until it is scanned, and file.uploaded is published only after it clears.",
+
+  "package": { "name": "@forge/data-files" },
+
+  "requires": [
+    { "id": "kernel.identity", "range": "^1.0.0", "reason": "Every upload has an owner and an access decision." },
+    { "id": "ops.queue", "range": "^1.0.0", "reason": "Scanning, thumbnailing, and processing are slow and must survive a restart. Kernel work would drop them." }
+  ],
+
+  "enhances": [
+    { "target": "docs.generation", "range": "^1.0.0", "unlocks": "generated documents are stored and versioned rather than regenerated on every view" },
+    { "target": "docs.extraction", "range": "^1.0.0", "unlocks": "uploaded documents become extraction inputs automatically" },
+    { "target": "ops.dispatch", "range": "^1.0.0", "unlocks": "field photos attach to a job from the mobile surface" },
+    { "target": "data.search", "range": "^1.0.0", "unlocks": "file contents and metadata become searchable" }
+  ],
+
+  "owns": [
+    { "name": "File", "kind": "table", "personal_data": true, "searchable": true,
+      "privacy": { "export_handler": "exportFiles", "deletion_strategy": "delete", "deletion_handler": "deleteFilesAndObjects",
+                   "retention_note": "Deletion removes the stored object as well as the row; a retained row pointing at a deleted object is a broken export." } },
+    { "name": "FileVersion", "kind": "table", "append_only": true, "listable": false },
+    { "name": "UploadSession", "kind": "table", "listable": false,
+      "description": "Short-lived signed-upload grant. Expired sessions are reaped." },
+    { "name": "Thumbnail", "kind": "table", "listable": false }
+  ],
+
+  "publishes": [
+    { "name": "file.uploaded", "contract_version": 1,
+      "description": "Published only after the file has been scanned and cleared, so a consumer never processes an unscanned object.",
+      "payload": { "type": "object", "required": ["file_id", "filename", "content_type", "size_bytes", "owner_id"],
+        "properties": { "file_id": { "type": "string" }, "filename": { "type": "string" },
+                        "content_type": { "type": "string" }, "size_bytes": { "type": "integer" },
+                        "owner_id": { "type": "string" }, "checksum": { "type": "string" } } } },
+    { "name": "file.scanned", "contract_version": 1,
+      "payload": { "type": "object", "required": ["file_id", "clean"],
+        "properties": { "file_id": { "type": "string" }, "clean": { "type": "boolean" }, "scanner": { "type": "string" } } } },
+    { "name": "file.quarantined", "contract_version": 1,
+      "payload": { "type": "object", "required": ["file_id", "reason"],
+        "properties": { "file_id": { "type": "string" }, "reason": { "type": "string" }, "threat": { "type": "string" } } } },
+    { "name": "file.deleted", "contract_version": 1,
+      "payload": { "type": "object", "required": ["file_id"],
+        "properties": { "file_id": { "type": "string" }, "cascade_source": { "type": "string" } } } },
+    { "name": "file.processed", "contract_version": 1,
+      "payload": { "type": "object", "required": ["file_id", "pipeline"],
+        "properties": { "file_id": { "type": "string" }, "pipeline": { "type": "string" }, "outputs": { "type": "array", "items": { "type": "string" } } } } }
+  ],
+
+  "consumes": [
+    { "name": "entity.deleted", "contract_versions": [1], "required": true,
+      "reason": "cascade-delete files attached to a deleted entity, including the stored objects", "handler": "cascadeDelete" }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "upload", "signature": "upload(input: UploadInput): Promise<UploadSession>",
+      "description": "Returns a signed direct-to-storage grant. File bytes never pass through the application." },
+    { "kind": "interface", "name": "signedUrl", "signature": "signedUrl(file: FileRef, ttlSeconds?: number): Promise<string>",
+      "agent_callable": true, "consequence": "read" },
+    { "kind": "component", "name": "FileUploader" },
+    { "kind": "component", "name": "FileBrowser" },
+    { "kind": "route", "name": "files", "path": "/api/files/*" }
+  ],
+
+  "surfaces": [
+    { "area": "app", "name": "Files", "path": "/files", "permission": "file.read",
+      "nav": { "label": "Files", "group": "content", "order": 30 } }
+  ],
+
+  "registers": [
+    { "registry": "kernel.access:permissions",
+      "entries": [
+        { "action": "file.read", "default_roles": ["owner", "admin", "member"] },
+        { "action": "file.upload", "default_roles": ["owner", "admin", "member"] },
+        { "action": "file.delete", "default_roles": ["owner", "admin"] }
+      ] }
+  ],
+
+  "external": [
+    { "service": "Object storage", "purpose": "Store uploaded objects outside the database.",
+      "credentials": [
+        { "name": "STORAGE_BUCKET", "description": "Bucket or container name for this environment.", "scope": "environment" },
+        { "name": "STORAGE_CREDENTIALS", "description": "Service account or access key for signing and object access.", "scope": "environment" }
+      ] },
+    { "service": "Virus scanning", "purpose": "Scan uploads before they become accessible.", "optional": true,
+      "credentials": [
+        { "name": "SCANNER_ENDPOINT", "description": "Scanning service endpoint. When absent, the 'reject' scan policy must be configured explicitly.", "scope": "environment", "optional": true }
+      ] }
+  ],
+
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "driver": { "enum": ["local", "gcs"], "default": "local",
+        "description": "The 'local' driver writes to the filesystem and is for the local workspace provider only." },
+      "max_size_bytes": { "type": "integer", "minimum": 1, "default": 26214400 },
+      "allowed_content_types": { "type": "array", "items": { "type": "string" },
+        "default": ["image/jpeg", "image/png", "image/heic", "application/pdf"] },
+      "scan_policy": { "enum": ["require_clean", "reject_when_unavailable", "skip"], "default": "require_clean",
+        "description": "'skip' is permitted only for the local provider; validation errors if a cloud environment configures it." }
+    }
+  },
+
+  "slots": [
+    { "name": "allowedTypes", "signature": "AllowedTypesSlot", "when": "when an upload is authorised",
+      "description": "Client-specific content-type rules beyond the configured list." },
+    { "name": "sizeLimits", "signature": "SizeLimitsSlot", "when": "when an upload is authorised",
+      "description": "Client-specific size limits, usually per entity or per role." },
+    { "name": "processingPipeline", "signature": "ProcessingPipelineSlot", "when": "after a file clears scanning",
+      "description": "Client-specific derivation work: resizing, redaction, format conversion." },
+    { "name": "retentionRules", "signature": "RetentionRulesSlot", "when": "when the retention sweep runs",
+      "description": "Client-specific retention and expiry." }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "upload, scan, and retrieve", "asserts": "a signed upload completes, is scanned, and is retrievable via a signed URL" },
+      { "name": "unscanned files are inaccessible", "asserts": "a file awaiting scan returns 404 rather than 200 from a signed URL" },
+      { "name": "signed URLs expire", "asserts": "a signed URL past its TTL is rejected by storage" }
+    ],
+    "contract": [
+      { "with": "kernel.data", "scenario": "an entity holding attached files is deleted",
+        "asserts": "every attached file row AND its stored object are removed, leaving no orphaned objects", "mandatory": true },
+      { "with": "ops.queue", "scenario": "the process restarts mid-scan",
+        "asserts": "the scan job resumes and the file does not remain permanently quarantined" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260701_create_data_files", "introduced_in": "1.0.0",
+      "up": "migrations/20260701_create_data_files.up.sql",
+      "down": "migrations/20260701_create_data_files.down.sql" }
+  ],
+
+  "templates": [
+    { "id": "config.ts", "version": "1.0.0", "output": "src/generated/data.files/config.ts", "zone": "managed" },
+    { "id": "slots", "version": "1.0.0", "output": "src/slots/data.files/", "zone": "seeded" }
+  ]
+}

@@ -15,11 +15,12 @@ previous client. Two numbers define success:
 
 ---
 
-## Status: Phase 0 — awaiting review
+## Status: Phase 1 in progress
 
-No engine code has been written. This is the pre-code deliverable the brief calls for in
-*How to Start*: the architecture, both schemas, and the kernel specified against the
-capability schema as the reference example.
+Phase 0 (architecture, schemas, kernel) is complete and its six open questions are
+[decided](ARCHITECTURE.md#14-decisions-taken-at-review). Phase 1 has a working engine
+core: the resolution pipeline through `validate`, with `catalog`, `graph`, and `quote`
+on top. Code generation and `plan`/`apply` are next.
 
 | Artifact | Path |
 |---|---|
@@ -27,11 +28,12 @@ capability schema as the reference example.
 | Capability specification schema | [`schemas/capability.schema.json`](schemas/capability.schema.json) |
 | Manifest schema | [`schemas/manifest.schema.json`](schemas/manifest.schema.json) |
 | The kernel — 11 capabilities, the reference example | [`catalog/kernel/`](catalog/kernel/) |
+| Phase 1 capabilities — `pay.card`, `pay.invoices` and their closure | [`catalog/pay/`](catalog/pay/), [`catalog/docs/`](catalog/docs/), [`catalog/data/`](catalog/data/), [`catalog/ops/`](catalog/ops/) |
+| The `forge` CLI | [`cmd/forge/`](cmd/forge/) |
+| Engine — resolution, validation, diagnostics | [`internal/`](internal/) |
 | Annotated reference manifest | [`examples/acme.forge.yaml`](examples/acme.forge.yaml) |
+| Phase 1 reference product | [`examples/phase1/forge.yaml`](examples/phase1/forge.yaml) |
 | Agent brief | [`docs/brief.md`](docs/brief.md) |
-
-**Six open questions are listed in [`ARCHITECTURE.md` §14](ARCHITECTURE.md#14-open-questions-for-review).**
-One of them — the ORM choice — blocks Phase 1 and should be settled at review.
 
 ## Assumptions
 
@@ -40,25 +42,43 @@ Decided at kickoff. Rationale and reversal cost in [`ARCHITECTURE.md` §0](ARCHI
 | | |
 |---|---|
 | Generated applications | Next.js (App Router) + TypeScript + PostgreSQL |
+| ORM | Drizzle — plain-SQL migrations that three-way merge and read in a plan |
 | `forge` CLI | Go |
 | Cloud target (Phase 4) | Google Cloud Platform |
+| Multi-tenancy | Repository-layer scoping, with generated cross-tenant leak tests |
+| Distribution | pnpm workspace in Phase 1, private registry from Phase 2 |
 
-## Verify
-
-`tools/validate.py` checks that both schemas are legal JSON Schema Draft 2020-12, that
-every kernel capability validates against the capability schema, that the annotated
-manifest validates against the manifest schema, and that the kernel is internally
-consistent — no unknown dependencies, no unpublished required events, no contract-version
-mismatches, no entity-name collisions, and no registration into an undeclared capability.
+## Try it
 
 ```
-pip install jsonschema pyyaml
-python3 tools/validate.py
+go build -o forge ./cmd/forge
+
+./forge catalog                                   # browse the catalog
+./forge catalog show pay.card                     # full specification
+./forge graph -f examples/phase1/forge.yaml       # resolved dependency graph
+./forge validate -f examples/phase1/forge.yaml    # every check, in one pass
+./forge quote -f examples/phase1/forge.yaml       # priced proposal
 ```
 
-This is a stand-in for `forge validate` until the Go engine exists. It already implements
-checks 1, 2, 3, 8, 11, and part of 9.3 from [`ARCHITECTURE.md` §6](ARCHITECTURE.md#6-validation);
-it caught one real inconsistency in the kernel while it was being written.
+`graph` on the Phase 1 product shows the resolver doing the work that matters: two
+capabilities are named in the manifest, three more (`docs.generation`, `data.files`,
+`ops.queue`) are pulled in transitively with the chain that caused each addition, and
+`ops.queue` supersedes the kernel's in-process queue while keeping its interface.
+
+Every command above is read-only.
+
+## Test
+
+```
+go test ./...                  # engine: resolution, validation, determinism, end to end
+python3 tools/validate.py      # schemas and catalog consistency (needs jsonschema, pyyaml)
+```
+
+The Go tests cover the parts the brief singles out as silently corrupting a client:
+dependency resolution, upgrade substitution and interface satisfaction, conflict
+detection, apply ordering, and determinism across repeated runs. `tools/validate.py`
+checks the shipped catalog against the shipped schema and caught two real inconsistencies
+while the kernel was being written.
 
 ## The two rules that make this real
 
@@ -76,20 +96,28 @@ is automated rather than rediscovered per client.
 ```
 ARCHITECTURE.md            the design document
 schemas/                   capability and manifest JSON Schemas
-catalog/kernel/            the 11 kernel capabilities
-examples/                  annotated reference manifest
-tools/validate.py          schema and consistency checks
+catalog/                   capability specifications, one JSON file each
+cmd/forge/                 CLI entry point
+internal/
+  spec/                    typed view of a capability specification
+  catalog/                 loading and schema validation
+  manifest/                forge.yaml parsing, with line numbers for diagnostics
+  resolve/                 closure, upgrade substitution, apply ordering
+  validate/                the checks in ARCHITECTURE.md section 6
+  diag/                    diagnostics carrying file, line, and fix
+examples/                  reference manifests
+tools/validate.py          schema and catalog consistency checks
 docs/                      brief and prose catalog
 ```
 
 Planned additions per [`ARCHITECTURE.md` §12](ARCHITECTURE.md#12-repository-layout):
 `packages/` (the npm runtime half of each capability), `templates/` (the generated half),
-`cmd/forge/` and `internal/` (the Go engine), `catalog/snapshots/`.
+`internal/plan/`, `internal/state/`, `internal/render/`, `internal/provider/`, and
+`catalog/snapshots/`.
 
 ## What is deliberately not here yet
 
-Phase 1 is the kernel plus `pay.card` and `pay.invoices` on one codegen provider, with
-`forge init | validate | plan | apply | catalog show`. Three-way merge, ejection, remote
-state, cloud providers, `forge quote`, and `forge fleet` are Phases 3–5. The brief is
-explicit that a working narrow path beats a broad half-built one — the failure mode to
-avoid is an elegant general-purpose engine that never composes a real product.
+`plan`, `apply`, and `init` need the codegen provider, which is the next piece of Phase 1.
+Three-way merge, ejection, remote state, cloud providers, and `forge fleet` are Phases 3–5.
+The brief is explicit that a working narrow path beats a broad half-built one — the failure
+mode to avoid is an elegant general-purpose engine that never composes a real product.

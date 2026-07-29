@@ -1,0 +1,128 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "docs.generation",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Generating Documents",
+  "tier": "capability",
+  "trigger": "You build quotes, contracts, invoices, or reports by editing last month's copy.",
+  "price": { "model": "fixed", "amount_minor": 450000, "currency": "USD" },
+  "integration_weight": 2,
+  "summary": "Templates consume kernel.ui tokens so generated documents match the product's branding without separate design work. Every rendering pins the template version it used, which is what makes reissuing a historical document byte-identical rather than silently restyled.",
+
+  "package": { "name": "@forge/docs-generation" },
+
+  "requires": [
+    { "id": "kernel.data", "range": "^1.0.0", "reason": "Templates and renderings are persisted, versioned entities." },
+    { "id": "data.files", "range": "^1.0.0", "reason": "A rendered document is stored as a file rather than regenerated on every view." }
+  ],
+
+  "enhances": [
+    { "target": "pay.invoices", "range": "^1.0.0", "unlocks": "invoices and receipts render as branded PDFs" },
+    { "target": "docs.signature", "range": "^1.0.0", "unlocks": "a generated document is routed straight into a signature request" },
+    { "target": "ops.jobcosting", "range": "^1.0.0", "unlocks": "job summaries and cost reports render as documents" },
+    { "target": "ops.reporting", "range": "^1.0.0", "unlocks": "scheduled reports are delivered as PDFs" },
+    { "target": "commerce.catalog", "range": "^1.0.0", "unlocks": "order confirmations and packing documents" }
+  ],
+
+  "owns": [
+    { "name": "DocumentTemplate", "kind": "table" },
+    { "name": "TemplateVersion", "kind": "table", "append_only": true,
+      "description": "Append-only. A rendering references the version it used, so editing a template can never retroactively change an issued document." },
+    { "name": "GeneratedDocument", "kind": "table", "personal_data": true,
+      "privacy": { "export_handler": "exportGeneratedDocuments", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeGeneratedDocuments",
+                   "retention_note": "Documents with financial or contractual meaning are anonymised rather than deleted." } }
+  ],
+
+  "publishes": [
+    { "name": "document.generated", "contract_version": 1,
+      "payload": { "type": "object", "required": ["document_id", "template_id", "template_version", "file_id", "format"],
+        "properties": { "document_id": { "type": "string" }, "template_id": { "type": "string" },
+                        "template_version": { "type": "integer" }, "file_id": { "type": "string" },
+                        "format": { "type": "string" }, "subject_ref": { "type": "string" } } } },
+    { "name": "document.template.updated", "contract_version": 1,
+      "payload": { "type": "object", "required": ["template_id", "version"],
+        "properties": { "template_id": { "type": "string" }, "version": { "type": "integer" }, "actor": { "type": "string" } } } }
+  ],
+
+  "consumes": [
+    { "name": "invoice.created", "contract_versions": [1], "required": false,
+      "reason": "render the invoice PDF as soon as it is issued", "handler": "renderInvoice" },
+    { "name": "quote.requested", "contract_versions": [1], "required": false,
+      "reason": "render a quote document when a quoting capability is present", "handler": "renderQuote" },
+    { "name": "job.completed", "contract_versions": [1], "required": false,
+      "reason": "render a completion summary when ops.dispatch is present", "handler": "renderJobSummary" },
+    { "name": "report.scheduled", "contract_versions": [1], "required": false,
+      "reason": "render a scheduled report when ops.reporting is present", "handler": "renderReport" }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "generate",
+      "signature": "generate(template: TemplateRef, data: unknown, opts?: GenerateOptions): Promise<GeneratedDocument>",
+      "agent_callable": true, "consequence": "write" },
+    { "kind": "component", "name": "TemplateEditor" },
+    { "kind": "interface", "name": "renderers", "signature": "renderPdf(html: string): Promise<Buffer>; renderHtml(template, data): Promise<string>" },
+    { "kind": "registry", "name": "templateHelpers",
+      "description": "Formatting helpers contributed by capabilities, so a money value renders identically in an invoice, a quote, and a report." }
+  ],
+
+  "surfaces": [
+    { "area": "admin", "name": "Templates", "path": "/admin/templates", "permission": "document.manage_templates",
+      "nav": { "label": "Templates", "group": "admin", "order": 60 } }
+  ],
+
+  "registers": [
+    { "registry": "kernel.access:permissions",
+      "entries": [
+        { "action": "document.read", "default_roles": ["owner", "admin", "member"] },
+        { "action": "document.generate", "default_roles": ["owner", "admin", "member"] },
+        { "action": "document.manage_templates", "default_roles": ["owner", "admin"] }
+      ] }
+  ],
+
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "default_format": { "enum": ["pdf", "html"], "default": "pdf" },
+      "page_size": { "enum": ["letter", "a4"], "default": "letter" },
+      "pdf_engine": { "enum": ["chromium", "none"], "default": "chromium",
+        "description": "'none' disables PDF rendering and restricts output to HTML. Useful where a headless browser is not available." }
+    }
+  },
+
+  "slots": [
+    { "name": "templateHelpers", "signature": "TemplateHelpersSlot", "when": "when a template is compiled",
+      "description": "Client-specific formatting helpers available to every template." },
+    { "name": "brandingOverride", "signature": "BrandingOverrideSlot", "when": "when document styling is resolved",
+      "description": "Per-document-type branding that differs from the application's kernel.ui tokens, such as a letterhead." },
+    { "name": "outputFormats", "signature": "OutputFormatsSlot", "when": "when an output format is selected",
+      "description": "Client-specific output formats beyond PDF and HTML." }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "template renders to PDF", "asserts": "a template plus data produces a non-empty PDF stored as a file" },
+      { "name": "branding tokens are applied", "asserts": "a rendered document carries the manifest's brand tokens without a separate stylesheet" },
+      { "name": "rendering is deterministic", "asserts": "rendering the same template version with the same data twice produces byte-identical output" }
+    ],
+    "contract": [
+      { "with": "data.files", "scenario": "a document is generated",
+        "asserts": "the rendering is stored as a file and the returned document references a retrievable file id" },
+      { "with": "pay.invoices", "scenario": "a template is edited after an invoice was issued",
+        "asserts": "reissuing the historical invoice uses the pinned template version and is byte-identical to the original" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260701_create_docs_generation", "introduced_in": "1.0.0",
+      "up": "migrations/20260701_create_docs_generation.up.sql",
+      "down": "migrations/20260701_create_docs_generation.down.sql" }
+  ],
+
+  "templates": [
+    { "id": "config.ts", "version": "1.0.0", "output": "src/generated/docs.generation/config.ts", "zone": "managed" },
+    { "id": "slots", "version": "1.0.0", "output": "src/slots/docs.generation/", "zone": "seeded" }
+  ]
+}
