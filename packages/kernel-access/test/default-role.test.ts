@@ -10,9 +10,20 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { assignDefaultRole, grantRole, revokeRole, rolesFor } from '../src/assignments.js'
 import { can } from '../src/can.js'
-import { configureAccess, resetAccessConfig } from '../src/config.js'
+import {
+  configureAccess,
+  resetAccessConfig,
+  roleDefinitions as roleDefinitionsOf,
+} from '../src/config.js'
 import { permissions, registerPermission } from '../src/permissions.js'
+import { BUILT_IN_ROLES } from '../src/roles.js'
 import { resetAccessRuntime, setAccessRuntime } from '../src/runtime.js'
+import {
+  permissionResolverContext,
+  roleDefinitionsContext,
+  type PermissionResolverSlot,
+  type RoleDefinitionsSlot,
+} from '../src/slots.js'
 import { createTestRuntime, type TestRuntime } from './support/fakes.js'
 
 /**
@@ -169,8 +180,8 @@ describe('can()', () => {
   it('accepts client roles from the roleDefinitions slot', async () => {
     configureAccess({
       slots: {
-        roleDefinitions: (builtIn) => [
-          ...builtIn,
+        roleDefinitions: (ctx) => [
+          ...ctx.proceed(),
           {
             name: 'auditor',
             grants: ['audit.*', 'invoice.read'],
@@ -212,5 +223,118 @@ describe('the permissions registry', () => {
     registerPermission({ action: 'file.read', defaultRoles: ['admin', 'member'] })
     expect(permissions.defaultRolesFor('file.read')).toEqual(['owner', 'admin', 'member'])
     expect(permissions.actions()).toEqual(['file.read'])
+  })
+})
+
+/**
+ * schemas/capability.schema.json, `$defs.slot.signature`: every slot context
+ * exposes `proceed()`, returning what the capability would have done with no
+ * slot implemented. internal/render/render.go seeds exactly this body, so the
+ * stubs below are the literal generated text.
+ */
+describe('the proceed() contract', () => {
+  function userFixture(id: string): User {
+    const at = new Date('2026-07-01T09:00:00.000Z')
+    return {
+      id,
+      email: `${id}@example.com`,
+      name: null,
+      emailVerifiedAt: at,
+      disabledAt: null,
+      anonymizedAt: null,
+      createdAt: at,
+      updatedAt: at,
+      deletedAt: null,
+    }
+  }
+
+  describe('roleDefinitions', () => {
+    it('proceed() returns the built-in owner/admin/member/viewer set', async () => {
+      const ctx = roleDefinitionsContext()
+      expect(ctx.proceed().map((role) => role.name)).toEqual([
+        'owner',
+        'admin',
+        'member',
+        'viewer',
+      ])
+      expect(ctx.proceed()).toEqual([...BUILT_IN_ROLES])
+      // A copy: a client is expected to spread and mutate what it gets back.
+      expect(ctx.proceed()).not.toBe(BUILT_IN_ROLES)
+      expect(ctx.builtIn).toEqual(BUILT_IN_ROLES)
+    })
+
+    it('the seeded stub resolves the same role set as no slot at all', async () => {
+      const roleDefinitions: RoleDefinitionsSlot = async (ctx) => {
+        return ctx.proceed()
+      }
+      configureAccess({ slots: { roleDefinitions } })
+      expect((await roleDefinitionsOf()).map((role) => role.name)).toEqual([
+        'owner',
+        'admin',
+        'member',
+        'viewer',
+      ])
+
+      registerPermission({ action: 'invoice.read', defaultRoles: ['member'] })
+      const member = userFixture('u_stub_member')
+      await grantRole(member.id, 'member')
+      expect(await can(member, 'invoice.read')).toBe(true)
+      expect(await can(member, 'invoice.void')).toBe(false)
+    })
+
+    it('a slot returning something else changes the role set', async () => {
+      const roleDefinitions: RoleDefinitionsSlot = async (ctx) => [
+        ...ctx.proceed(),
+        { name: 'auditor', grants: ['audit.*'], inherits: ['viewer'], rank: 250 },
+      ]
+      configureAccess({ slots: { roleDefinitions } })
+      expect((await roleDefinitionsOf()).map((role) => role.name)).toContain('auditor')
+
+      const auditor = userFixture('u_proceed_auditor')
+      await grantRole(auditor.id, 'auditor')
+      expect(await can(auditor, 'audit.read')).toBe(true)
+    })
+  })
+
+  describe('permissionResolver', () => {
+    it('proceed() abstains, which leaves the decision at deny', () => {
+      const ctx = permissionResolverContext({
+        user: userFixture('u_abstain'),
+        action: 'report.export',
+        resource: undefined,
+        roles: ['member'],
+        declaration: undefined,
+      })
+      expect(ctx.proceed()).toBeNull()
+    })
+
+    it('the seeded stub decides exactly as no slot at all', async () => {
+      const permissionResolver: PermissionResolverSlot = async (ctx) => {
+        return ctx.proceed()
+      }
+      registerPermission({ action: 'invoice.read', defaultRoles: ['member'] })
+      const member = userFixture('u_stub_resolver')
+      await grantRole(member.id, 'member')
+
+      // Without the slot.
+      expect(await can(member, 'invoice.read')).toBe(true)
+      expect(await can(member, 'report.export')).toBe(false)
+
+      // With the stub: identical.
+      configureAccess({ slots: { permissionResolver } })
+      expect(await can(member, 'invoice.read')).toBe(true)
+      expect(await can(member, 'report.export')).toBe(false)
+    })
+
+    it('a slot returning something else changes the decision', async () => {
+      const permissionResolver: PermissionResolverSlot = async (ctx) =>
+        ctx.action === 'report.export' ? true : ctx.proceed()
+      configureAccess({ slots: { permissionResolver } })
+
+      const member = userFixture('u_override_resolver')
+      await grantRole(member.id, 'member')
+      expect(await can(member, 'report.export')).toBe(true)
+      expect(await can(member, 'report.delete')).toBe(false)
+    })
   })
 })

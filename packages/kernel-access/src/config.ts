@@ -1,5 +1,10 @@
 import { BUILT_IN_ROLES } from './roles.js'
-import { defaultPermissionResolver, defaultRoleDefinitions, type AccessSlots } from './slots.js'
+import {
+  defaultPermissionResolver,
+  defaultRoleDefinitions,
+  roleDefinitionsContext,
+  type AccessSlots,
+} from './slots.js'
 import type { RoleDefinition, RoleName } from './types.js'
 
 export interface AccessConfig {
@@ -46,7 +51,7 @@ export function resetAccessConfig(): void {
 export async function roleDefinitions(): Promise<RoleDefinition[]> {
   if (resolvedRoles !== null) return resolvedRoles
   const slot = current.slots.roleDefinitions ?? defaultRoleDefinitions
-  resolvedRoles = await slot(BUILT_IN_ROLES)
+  resolvedRoles = await slot(roleDefinitionsContext(BUILT_IN_ROLES))
   return resolvedRoles
 }
 

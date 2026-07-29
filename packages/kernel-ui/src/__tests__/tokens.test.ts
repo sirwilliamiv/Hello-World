@@ -14,11 +14,18 @@ import { readdirSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
-import { identityTheme, type ThemeSlot } from '../slots.js'
+import {
+  configureUiSlots,
+  identityTheme,
+  resetUiSlots,
+  themeContext,
+  type ThemeSlot,
+} from '../slots.js'
 import {
   defaultTokens,
+  resolveThemeTokens,
   resolveTokens,
   tokenNames,
   tokenRef,
@@ -130,9 +137,9 @@ describe('resolveTokens', () => {
     expect(resolveTokens({ 'z.modal': 900 })['z.modal']).toBe('900')
   })
 
-  it('applies the theme slot last, above manifest branding', () => {
-    const theme: ThemeSlot = (tokens) => ({ ...tokens, 'color.brand.primary': '#000001' })
-    const tokens = resolveTokens({ 'color.brand.primary': '#0F5132' }, theme)
+  it('applies the theme slot last, above manifest branding', async () => {
+    const theme: ThemeSlot = (ctx) => ({ ...ctx.proceed(), 'color.brand.primary': '#000001' })
+    const tokens = await resolveThemeTokens({ 'color.brand.primary': '#0F5132' }, theme)
     expect(tokens['color.brand.primary']).toBe('#000001')
   })
 
@@ -143,8 +150,56 @@ describe('resolveTokens', () => {
     )
   })
 
-  it('is unchanged by the identity theme slot', () => {
-    expect(resolveTokens({}, identityTheme)).toEqual(resolveTokens())
+  it('is unchanged by the identity theme slot', async () => {
+    expect(await resolveThemeTokens({}, identityTheme)).toEqual(resolveTokens())
+  })
+})
+
+/**
+ * schemas/capability.schema.json, `$defs.slot.signature`: every slot context
+ * exposes `proceed()`, returning what the capability would have done with no
+ * slot implemented. internal/render/render.go seeds exactly this body.
+ */
+describe('the theme slot proceed() contract', () => {
+  afterEach(() => {
+    resetUiSlots()
+  })
+
+  it('proceed() returns the defaults with manifest branding folded in', () => {
+    const overrides = { 'color.brand.primary': '#0F5132' }
+    const ctx = themeContext(overrides, resolveTokens(overrides))
+    expect(ctx.proceed()).toEqual(resolveTokens(overrides))
+    expect(ctx.proceed()['color.brand.primary']).toBe('#0F5132')
+    expect(ctx.proceed()['color.text.primary']).toBe(defaultTokens['color.text.primary'])
+    expect(ctx.overrides).toBe(overrides)
+  })
+
+  it('the seeded stub resolves the tokens an unslotted product renders', async () => {
+    const theme: ThemeSlot = async (ctx) => {
+      return ctx.proceed()
+    }
+    const overrides = { 'color.brand.primary': '#0F5132', 'z.modal': 900 }
+    expect(await resolveThemeTokens(overrides, theme)).toEqual(resolveTokens(overrides))
+  })
+
+  it('is invoked from the slot registry, not only by argument', async () => {
+    // The `theme` slot had no call site at all before: nothing read it, so a
+    // client could write one and watch nothing happen.
+    configureUiSlots({
+      theme: (ctx) => ({ ...ctx.proceed(), 'color.brand.accent': '#abcdef' }),
+    })
+    expect((await resolveThemeTokens())['color.brand.accent']).toBe('#abcdef')
+
+    resetUiSlots()
+    expect((await resolveThemeTokens())['color.brand.accent']).toBe(
+      defaultTokens['color.brand.accent'],
+    )
+  })
+
+  it('a slot returning something else changes the rendered CSS', async () => {
+    const theme: ThemeSlot = (ctx) => ({ ...ctx.proceed(), 'color.brand.primary': '#000001' })
+    const css = tokensToCss(await resolveThemeTokens({ 'color.brand.primary': '#0F5132' }, theme))
+    expect(css).toContain('--color-brand-primary: #000001;')
   })
 })
 

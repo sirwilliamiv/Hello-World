@@ -13,13 +13,21 @@ import {
   groupNavigation,
   navigation,
   registerNavItem,
+  registerNavItems,
   registerSurface,
+  resetNavigationOrder,
   resolveNavigation,
   setNavigationPermissionResolver,
   surfaces,
   type NavigationEntry,
 } from '../navigation.js'
-import { identityNavigationOrder, type NavigationOrderSlot } from '../slots.js'
+import {
+  configureUiSlots,
+  identityNavigationOrder,
+  navigationOrderContext,
+  resetUiSlots,
+  type NavigationOrderSlot,
+} from '../slots.js'
 
 /** The surfaces declared across the Phase 1 kernel specs. */
 const KERNEL_SURFACES = [
@@ -32,16 +40,20 @@ beforeEach(() => {
   navigation.clear()
   surfaces.clear()
   setNavigationPermissionResolver(undefined)
+  resetNavigationOrder()
+  resetUiSlots()
 })
 
 describe('registerNavItem', () => {
   it('accepts the object literal the generated template emits', async () => {
-    // templates/kernel.ui/navigation.ts.tmpl renders exactly this shape.
+    // templates/kernel.ui/navigation.ts.tmpl renders exactly this shape, in
+    // (order, path) order — internal/render/render.go sorts NavItems before
+    // emitting them, which is the "declared order" ctx.proceed() returns.
     const items = [
-      { label: 'Admin', path: '/admin', group: 'admin', order: 10, permission: 'admin.access' },
       { label: 'Dashboard', path: '/', group: 'main', order: 0 },
+      { label: 'Admin', path: '/admin', group: 'admin', order: 10, permission: 'admin.access' },
     ]
-    for (const item of identityNavigationOrder(items)) registerNavItem(item)
+    await registerNavItems(items, identityNavigationOrder)
 
     expect(navigation.size).toBe(2)
     const visible = await resolveNavigation({ can: () => true })
@@ -123,23 +135,101 @@ describe('permission filtering', () => {
 })
 
 describe('the navigationOrder slot', () => {
-  it('reorders and hides, because the template registers whatever it returns', async () => {
-    const items = [
-      { label: 'Admin', path: '/admin', group: 'admin', order: 10 },
-      { label: 'Dashboard', path: '/', group: 'main', order: 0 },
-      { label: 'Billing', path: '/settings/billing', group: 'settings', order: 20 },
-    ]
+  const DECLARED = [
+    { label: 'Dashboard', path: '/', group: 'main', order: 0 },
+    { label: 'Admin', path: '/admin', group: 'admin', order: 10 },
+    { label: 'Billing', path: '/settings/billing', group: 'settings', order: 20 },
+  ]
 
+  it('reorders and hides, because registerNavItems registers whatever it returns', async () => {
     // A plausible client slot: promote billing, drop admin.
-    const navigationOrder: NavigationOrderSlot = (entries) =>
-      entries
+    const navigationOrder: NavigationOrderSlot = (ctx) =>
+      ctx
+        .proceed()
         .filter((e) => e.path !== '/admin')
         .map((e) => (e.path === '/settings/billing' ? { ...e, order: -1 } : e))
 
-    for (const item of navigationOrder(items)) registerNavItem(item)
+    await registerNavItems(DECLARED, navigationOrder)
 
     const visible = await resolveNavigation({ can: () => true })
     expect(visible.map((e) => e.path)).toEqual(['/settings/billing', '/'])
+  })
+
+  /**
+   * schemas/capability.schema.json, `$defs.slot.signature`: every slot context
+   * exposes proceed(), returning what the capability would have done with no
+   * slot implemented. internal/render/render.go seeds exactly this body.
+   */
+  describe('the proceed() contract', () => {
+    it('proceed() returns the entries in their declared order', () => {
+      const ctx = navigationOrderContext(DECLARED)
+      expect(ctx.proceed().map((e) => e.path)).toEqual(['/', '/admin', '/settings/billing'])
+      // A copy: a client is expected to filter and reorder what it gets back.
+      expect(ctx.proceed()).not.toBe(DECLARED)
+      expect(ctx.entries).toBe(DECLARED)
+    })
+
+    it('the seeded stub registers the nav an unslotted product shows', async () => {
+      const navigationOrder: NavigationOrderSlot = async (ctx) => {
+        return ctx.proceed()
+      }
+      await registerNavItems(DECLARED, navigationOrder)
+
+      const withStub = (await resolveNavigation({ can: () => true })).map((e) => e.path)
+      expect(withStub).toEqual(['/', '/admin', '/settings/billing'])
+
+      // No slot at all agrees.
+      navigation.clear()
+      resetNavigationOrder()
+      await registerNavItems(DECLARED)
+      expect((await resolveNavigation({ can: () => true })).map((e) => e.path)).toEqual(withStub)
+    })
+
+    it('honours a returned sequence the (order, path) sort would otherwise undo', async () => {
+      // Same weight on every entry, and nothing here rewrites `order`: only the
+      // sequence differs. Without the slot these sort by path — '/a', '/b',
+      // '/c' — so this is the case that proves the return value is respected.
+      const flat = [
+        { label: 'A', path: '/a', group: 'main', order: 0 },
+        { label: 'B', path: '/b', group: 'main', order: 0 },
+        { label: 'C', path: '/c', group: 'main', order: 0 },
+      ]
+      expect((await registerNavItems(flat, identityNavigationOrder)).map((e) => e.path)).toEqual([
+        '/a',
+        '/b',
+        '/c',
+      ])
+      expect((await resolveNavigation()).map((e) => e.path)).toEqual(['/a', '/b', '/c'])
+
+      navigation.clear()
+      resetNavigationOrder()
+      const navigationOrder: NavigationOrderSlot = (ctx) => [...ctx.proceed()].reverse()
+      await registerNavItems(flat, navigationOrder)
+      expect((await resolveNavigation()).map((e) => e.path)).toEqual(['/c', '/b', '/a'])
+    })
+
+    it('leaves `order` in charge, so a surface registered later still interleaves', async () => {
+      await registerNavItems(DECLARED, (ctx) => [...ctx.proceed()].reverse())
+      // kernel.admin and friends register their own surfaces at module eval,
+      // after the generated navigation module has run. Weight still decides.
+      registerNavItem({ label: 'Reports', path: '/reports', group: 'main', order: 5 })
+
+      expect((await resolveNavigation({ can: () => true })).map((e) => e.path)).toEqual([
+        '/',
+        '/reports',
+        '/admin',
+        '/settings/billing',
+      ])
+    })
+
+    it('is invoked from the slot registry, so a configured slot takes effect', async () => {
+      configureUiSlots({ navigationOrder: (ctx) => ctx.proceed().filter((e) => e.path !== '/') })
+      await registerNavItems(DECLARED)
+      expect((await resolveNavigation({ can: () => true })).map((e) => e.path)).toEqual([
+        '/admin',
+        '/settings/billing',
+      ])
+    })
   })
 })
 
@@ -152,5 +242,32 @@ describe('groupNavigation', () => {
     const groups = groupNavigation(navigation.all())
     expect(groups.map((g) => g.group)).toEqual(['main', 'admin'])
     expect(groups[0]?.items.map((i) => i.path)).toEqual(['/a', '/c'])
+  })
+})
+
+describe('registerNavItems and the async slot', () => {
+  beforeEach(() => {
+    navigation.clear()
+    resetNavigationOrder()
+    resetUiSlots()
+  })
+
+  it('resolveNavigation waits for a registration the caller did not await', async () => {
+    // templates/kernel.ui/navigation.ts.tmpl is imported for its side effects by
+    // the root layout and cannot use top-level await, so the shell must not be
+    // able to render a half-registered nav.
+    const slow: NavigationOrderSlot = async (ctx) => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      return ctx.proceed().filter((e) => e.path !== '/admin')
+    }
+    void registerNavItems(
+      [
+        { label: 'Dashboard', path: '/', group: 'main', order: 0 },
+        { label: 'Admin', path: '/admin', group: 'admin', order: 10 },
+      ],
+      slow,
+    )
+
+    expect((await resolveNavigation({ can: () => true })).map((e) => e.path)).toEqual(['/'])
   })
 })

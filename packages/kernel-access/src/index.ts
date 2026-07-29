@@ -34,9 +34,13 @@ export {
 export {
   defaultPermissionResolver,
   defaultRoleDefinitions,
+  permissionResolverContext,
+  roleDefinitionsContext,
   type AccessSlots,
+  type PermissionDecision,
   type PermissionResolverContext,
   type PermissionResolverSlot,
+  type RoleDefinitionsContext,
   type RoleDefinitionsSlot,
 } from './slots.js'
 

@@ -2,6 +2,7 @@ import { permissionResolver, roleDefinitions } from './config.js'
 import { permissions } from './permissions.js'
 import { effectiveRoleNames, rolesGrant } from './roles.js'
 import { rolesFor } from './assignments.js'
+import { permissionResolverContext } from './slots.js'
 import type { ResourceRef, RoleName, User } from './types.js'
 
 /**
@@ -41,13 +42,15 @@ export async function can(
   const declared = declaration?.defaultRoles ?? []
   if (declared.some((role) => effective.includes(role))) return true
 
-  const resolved = await permissionResolver()({
-    user,
-    action,
-    resource,
-    roles: effective,
-    declaration,
-  })
+  const resolved = await permissionResolver()(
+    permissionResolverContext({
+      user,
+      action,
+      resource,
+      roles: effective,
+      declaration,
+    }),
+  )
   return resolved === true
 }
 

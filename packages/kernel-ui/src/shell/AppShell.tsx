@@ -22,12 +22,13 @@
 
 import type { ReactNode } from 'react'
 
+
 import '../styles/tokens.css'
 import '../styles/components.css'
 
 import { ToastProvider } from '../components/Toast.js'
 import type { NavigationPermissionResolver } from '../navigation.js'
-import type { LogoSlot } from '../slots.js'
+import { logoContext, uiSlots, type LogoSlot } from '../slots.js'
 import { Nav } from './Nav.js'
 
 export interface AppShellProps {
@@ -35,8 +36,9 @@ export interface AppShellProps {
   readonly product: string
   readonly children: ReactNode
   /**
-   * The client's `logo` slot. `null`/omitted falls back to the product name as
-   * a wordmark, which is what an unbranded product should look like.
+   * The client's `logo` slot. Omitted falls back to whatever `configureUiSlots`
+   * installed, and then to the manifest logo image or the product name as a
+   * wordmark — which is what an unbranded product should look like.
    */
   readonly logo?: LogoSlot
   /** Path to a static logo image, from `branding.logo` in the manifest. */
@@ -52,24 +54,20 @@ export interface AppShellProps {
   readonly headerContent?: ReactNode
 }
 
-function Brand({
-  product,
-  logo,
-  logoSrc,
-}: {
-  product: string
-  logo: LogoSlot | undefined
-  logoSrc: string | undefined
-}) {
-  if (logo !== undefined && logo !== null) {
-    const Logo = logo
-    return <Logo product={product} variant="light" />
-  }
-  if (logoSrc !== undefined) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logoSrc} alt={product} height={24} />
-  }
-  return <span>{product}</span>
+/**
+ * The `logo` slot's call site.
+ *
+ * `ctx.proceed()` renders the shell's own mark — the manifest logo image, or
+ * the product name as a wordmark — so the seeded stub produces exactly the
+ * header an unslotted product has.
+ */
+async function brandMark(
+  product: string,
+  logo: LogoSlot | undefined,
+  logoSrc: string | undefined,
+): Promise<ReactNode> {
+  const context = logoContext({ product, variant: 'light', logoSrc })
+  return logo === undefined ? context.proceed() : await logo(context)
 }
 
 export async function AppShell({
@@ -83,6 +81,8 @@ export async function AppShell({
   headerActions,
   headerContent,
 }: AppShellProps) {
+  const brand = await brandMark(product, logo ?? uiSlots().logo, logoSrc)
+
   return (
     <ToastProvider>
       <div className="fui-shell">
@@ -92,7 +92,7 @@ export async function AppShell({
             className="fui-nav__link"
             style={{ padding: 0, color: 'inherit', textDecoration: 'none' }}
           >
-            <Brand product={product} logo={logo} logoSrc={logoSrc} />
+            {brand}
           </a>
         </div>
 

@@ -3,7 +3,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { configureIdentity, resetIdentityConfig } from '../src/config.js'
 import { authHandler } from '../src/handler.js'
 import { resetIdentityRuntime, setIdentityRuntime } from '../src/runtime.js'
-import type { OnRegistrationSlot, PasswordPolicySlot, PostLoginRedirectSlot } from '../src/slots.js'
+import {
+  builtInPasswordPolicy,
+  passwordPolicyContext,
+  postLoginRedirectContext,
+  MINIMUM_PASSWORD_LENGTH,
+  type IdentitySlots,
+  type OnRegistrationSlot,
+  type PasswordPolicySlot,
+  type PostLoginRedirectSlot,
+} from '../src/slots.js'
 import { createTestRuntime, type TestRuntime } from './support/fakes.js'
 
 /**

@@ -18,6 +18,7 @@
  */
 
 import { createRegistry, type Registry } from './registry.js'
+import { navigationOrderContext, uiSlots, type NavigationOrderSlot } from './slots.js'
 
 /** The `area` values the capability schema permits for a surface. */
 export type SurfaceArea = 'app' | 'admin' | 'public' | 'mobile' | 'email' | 'document'
@@ -73,6 +74,82 @@ export const surfaces: Registry<SurfaceRegistration> = createRegistry<SurfaceReg
 /** exposes.interface: registerNavItem */
 export function registerNavItem(entry: NavigationEntry): void {
   navigation.register(entry)
+}
+
+/**
+ * The sequence the `navigationOrder` slot last returned, by path.
+ *
+ * The registry sorts by (order, path) so that registration order cannot make
+ * the shell disagree with the Go renderer, which means a slot that reordered
+ * entries by returning them in a different sequence would be silently undone.
+ * Recording the sequence lets it break ties between entries sharing an `order`
+ * — see {@link orderedNavigation}.
+ */
+let slotOrder: readonly string[] | null = null
+
+/** The in-flight registration `resolveNavigation` waits for. */
+let pending: Promise<readonly NavigationEntry[]> | null = null
+
+/**
+ * The `navigationOrder` slot's call site: order the graph's nav entries through
+ * the slot, register what it returns, and keep that order.
+ *
+ * This is what templates/kernel.ui/navigation.ts.tmpl drives —
+ *
+ *     registerNavItems(items, navigationOrder)
+ *
+ * — passing the entries in the order the resolved graph declared them, which is
+ * exactly what `ctx.proceed()` gives back. Returning a subset hides an entry;
+ * returning a reordered array reorders one.
+ *
+ * The seeded stub is `async`, so this has to be too. The generated module is
+ * imported for its side effects by the root layout and cannot await, so the
+ * returned promise is remembered and `resolveNavigation` waits on it: nothing
+ * renders a half-registered nav, and the template needs no top-level await.
+ */
+export function registerNavItems(
+  items: readonly NavigationEntry[],
+  slot: NavigationOrderSlot | undefined = uiSlots().navigationOrder,
+): Promise<readonly NavigationEntry[]> {
+  const registration = (async (): Promise<readonly NavigationEntry[]> => {
+    const context = navigationOrderContext(items)
+    const ordered = slot === undefined ? context.proceed() : [...(await slot(context))]
+    slotOrder = ordered.map((entry) => entry.path)
+    for (const entry of ordered) registerNavItem(entry)
+    return ordered
+  })()
+  pending = registration
+  return registration
+}
+
+/** Forget the slot-imposed order. Test helper; also what a preview needs. */
+export function resetNavigationOrder(): void {
+  slotOrder = null
+  pending = null
+}
+
+/**
+ * Registry contents in the order the shell shows them.
+ *
+ * `order` still decides, because it is the weight the resolved graph and the Go
+ * renderer both use and an entry registered by `registerSurface` has to
+ * interleave with the graph's entries correctly. Within one `order` the
+ * sequence the `navigationOrder` slot returned decides, and `path` breaks what
+ * is left — so a slot that reorders entries of equal weight is honoured instead
+ * of being silently re-sorted, and a slot that wants to move an entry past a
+ * different weight changes its `order`.
+ */
+export function orderedNavigation(): readonly NavigationEntry[] {
+  const all = navigation.all()
+  if (slotOrder === null) return all
+  const rank = new Map(slotOrder.map((path, index) => [path, index]))
+  const rankOf = (entry: NavigationEntry): number =>
+    rank.get(entry.path) ?? Number.MAX_SAFE_INTEGER
+  return [...all].sort((a, b) => {
+    if (a.order !== b.order) return a.order - b.order
+    if (rankOf(a) !== rankOf(b)) return rankOf(a) - rankOf(b)
+    return a.path.localeCompare(b.path)
+  })
 }
 
 /**
@@ -132,17 +209,18 @@ export interface ResolveNavigationOptions {
 /**
  * The registry, filtered by permission and ordered.
  *
- * The `navigationOrder` slot is applied by the *generated* module before
- * registration (see the template above), not here, so this function is a pure
- * projection of registry state.
+ * The `navigationOrder` slot runs once, at registration, in `registerNavItems`;
+ * this is a pure projection of registry state in the order that call left it.
  */
 export async function resolveNavigation(
   options: ResolveNavigationOptions = {},
 ): Promise<readonly NavigationEntry[]> {
   const can = options.can ?? permissionResolver
-  const entries = navigation
-    .all()
-    .filter((entry) => options.group === undefined || entry.group === options.group)
+  // A registration started by the generated module may still be in flight.
+  if (pending !== null) await pending
+  const entries = orderedNavigation().filter(
+    (entry) => options.group === undefined || entry.group === options.group,
+  )
 
   const visible: NavigationEntry[] = []
   for (const entry of entries) {

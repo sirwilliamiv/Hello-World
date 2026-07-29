@@ -9,10 +9,18 @@
 
 import { dashboardWidgets, type DashboardWidget } from '../dashboard.js'
 import type { NavigationPermissionResolver } from '../navigation.js'
-import { identityDashboardWidgets, type DashboardWidgetsSlot } from '../slots.js'
+import {
+  dashboardWidgetsContext,
+  uiSlots,
+  type DashboardWidgetsSlot,
+} from '../slots.js'
 
 export interface DashboardProps {
-  /** The client's `dashboardWidgets` slot. Defaults to identity. */
+  /**
+   * The client's `dashboardWidgets` slot. Defaults to whatever
+   * `configureUiSlots` installed, and to the registry order when nothing is
+   * installed.
+   */
   readonly arrange?: DashboardWidgetsSlot
   /** Permission resolver for widgets declaring one. */
   readonly can?: NavigationPermissionResolver
@@ -36,11 +44,13 @@ async function visible(
 }
 
 export async function Dashboard({
-  arrange = identityDashboardWidgets,
+  arrange = uiSlots().dashboardWidgets,
   can,
   empty = 'No widgets have been registered.',
 }: DashboardProps) {
-  const widgets = await visible(arrange(dashboardWidgets.all()), can)
+  const context = dashboardWidgetsContext(dashboardWidgets.all())
+  const arranged = arrange === undefined ? context.proceed() : await arrange(context)
+  const widgets = await visible(arranged, can)
 
   if (widgets.length === 0) {
     return <div className="fui-table__empty">{empty}</div>

@@ -222,7 +222,12 @@ async function chargeImpl(
   }
 
   if (rt.slots.afterCharge !== undefined) {
-    await rt.slots.afterCharge({ charge: result, customer, actorUserId: actor })
+    await rt.slots.afterCharge({
+      charge: result,
+      customer,
+      actorUserId: actor,
+      proceed: () => undefined,
+    })
   }
 
   // Only a freshly inserted charge publishes. A duplicate provider reference is

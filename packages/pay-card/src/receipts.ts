@@ -36,7 +36,7 @@ export async function buildChargeReceipt(charge: Charge): Promise<ChargeReceipt>
   const rt = requirePaymentsRuntime()
   const receipt = defaultChargeReceipt(charge)
   if (rt.slots.receiptCustomization === undefined) return receipt
-  const customised = await rt.slots.receiptCustomization({ receipt, charge })
+  const customised = await rt.slots.receiptCustomization({ receipt, charge, proceed: () => receipt })
   return customised ?? receipt
 }
 

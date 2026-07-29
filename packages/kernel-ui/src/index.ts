@@ -65,8 +65,11 @@ export type { DashboardProps } from './shell/Dashboard.js'
 export {
   groupNavigation,
   navigation,
+  orderedNavigation,
   registerNavItem,
+  registerNavItems,
   registerSurface,
+  resetNavigationOrder,
   resolveNavigation,
   setNavigationPermissionResolver,
   surfaces,
@@ -90,6 +93,7 @@ export type {
 // owns: DesignToken registry.
 export {
   defaultTokens,
+  resolveThemeTokens,
   resolveTokens,
   tokenNames,
   tokenRef,
@@ -99,18 +103,32 @@ export {
 } from './tokens.js'
 export type { TokenName, TokenOverrides, TokenSet, TokenValue } from './tokens.js'
 
-// Slot types. Names match slots[].signature in the spec exactly.
+// Slot types. Names match slots[].signature in the spec exactly. Every context
+// exposes proceed(), returning what kernel.ui does with the slot unimplemented.
 export {
+  configureUiSlots,
+  dashboardWidgetsContext,
   identityDashboardWidgets,
+  identityLogo,
   identityNavigationOrder,
   identityTheme,
+  logoContext,
+  navigationOrderContext,
+  resetUiSlots,
+  themeContext,
+  uiSlots,
 } from './slots.js'
 export type {
+  DashboardWidgetsContext,
   DashboardWidgetsSlot,
+  LogoContext,
   LogoSlot,
   LogoSlotProps,
+  NavigationOrderContext,
   NavigationOrderSlot,
+  ThemeContext,
   ThemeSlot,
+  UiSlots,
 } from './slots.js'
 
 // The registry primitive, so a capability building its own registry behaves

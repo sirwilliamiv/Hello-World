@@ -40,6 +40,12 @@ export interface AfterChargeContext {
   readonly charge: Charge
   readonly customer: CustomerRef
   readonly actorUserId: string | null
+  /**
+   * The default: do nothing further. Present so the seeded stub can be
+   * `return ctx.proceed()` like every other slot in the catalog — a uniform
+   * "carry on as you would have" verb is what makes a slot a slot.
+   */
+  proceed(): void
 }
 
 /**
@@ -52,6 +58,8 @@ export type AfterChargeSlot = (ctx: AfterChargeContext) => void | Promise<void>
 export interface ReceiptCustomizationContext {
   readonly receipt: ChargeReceipt
   readonly charge: Charge
+  /** The default: the receipt the capability rendered, unmodified. */
+  proceed(): ChargeReceipt
 }
 
 /**

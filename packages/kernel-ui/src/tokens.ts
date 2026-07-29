@@ -17,6 +17,8 @@
  * silently stops applying.
  */
 
+import { themeContext, uiSlots, type ThemeSlot } from './slots.js'
+
 export type TokenValue = string
 
 /**
@@ -183,20 +185,33 @@ export function tokenNames(): readonly string[] {
 }
 
 /**
- * Fold manifest branding and the client's `theme` slot over the defaults.
+ * Fold manifest branding over the defaults.
  *
- * Precedence, lowest first: package defaults → manifest branding → theme slot.
+ * This is the token set an unslotted product renders, and therefore exactly
+ * what a `theme` slot's `ctx.proceed()` returns.
  */
-export function resolveTokens(
-  overrides: TokenOverrides = {},
-  theme?: (tokens: TokenSet) => TokenSet,
-): TokenSet {
+export function resolveTokens(overrides: TokenOverrides = {}): TokenSet {
   const resolved: Record<string, TokenValue> = { ...defaultTokens }
   for (const [name, value] of Object.entries(overrides)) {
     resolved[name] = typeof value === 'number' ? String(value) : value
   }
-  const merged = resolved as TokenSet
-  return theme === undefined ? merged : theme(merged)
+  return resolved as TokenSet
+}
+
+/**
+ * Token resolution, including the client's `theme` slot — the slot's call site.
+ *
+ * Precedence, lowest first: package defaults → manifest branding → theme slot.
+ * With no slot installed, or with the seeded stub that returns `ctx.proceed()`,
+ * the result is `resolveTokens(overrides)` unchanged.
+ */
+export async function resolveThemeTokens(
+  overrides: TokenOverrides = {},
+  theme: ThemeSlot | undefined = uiSlots().theme,
+): Promise<TokenSet> {
+  const tokens = resolveTokens(overrides)
+  if (theme === undefined) return tokens
+  return await theme(themeContext(overrides, tokens))
 }
 
 /**
