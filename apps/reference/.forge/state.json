@@ -1,0 +1,610 @@
+{
+  "state_version": 1,
+  "workspace": "reference/development",
+  "forge_version": "0.1.0",
+  "serial": 1,
+  "manifest_hash": "sha256:339ec058da5fd2fc58ee7c0d784a33b959c0e13d0a148d5a2b68aacca46718ca",
+  "catalog_snapshot": "2026-07-15",
+  "lock": {
+    "kernel": "1.0.0",
+    "capabilities": {
+      "data.files": "1.0.0",
+      "docs.generation": "1.0.0",
+      "ops.queue": "1.0.0",
+      "pay.card": "1.0.0",
+      "pay.invoices": "1.0.0"
+    },
+    "event_contracts": {
+      "access.role.granted": 1,
+      "access.role.revoked": 1,
+      "document.generated": 1,
+      "document.template.updated": 1,
+      "entity.created": 1,
+      "entity.deleted": 1,
+      "entity.restored": 1,
+      "entity.updated": 1,
+      "file.deleted": 1,
+      "file.processed": 1,
+      "file.quarantined": 1,
+      "file.scanned": 1,
+      "file.uploaded": 1,
+      "identity.login.failed": 1,
+      "identity.password.reset.requested": 1,
+      "identity.session.ended": 1,
+      "identity.session.started": 1,
+      "identity.user.created": 1,
+      "identity.user.deleted": 1,
+      "identity.user.updated": 1,
+      "invoice.created": 1,
+      "invoice.overdue": 1,
+      "invoice.paid": 1,
+      "invoice.sent": 1,
+      "invoice.voided": 1,
+      "job.dead_lettered": 1,
+      "job.enqueued": 1,
+      "job.failed": 1,
+      "job.started": 1,
+      "job.succeeded": 1,
+      "payment.failed": 1,
+      "payment.method.added": 1,
+      "payment.refunded": 1,
+      "payment.succeeded": 1,
+      "queue.depth.exceeded": 1
+    },
+    "templates": {
+      "\u003cclient\u003e:client-entities.sql": "1.0.0",
+      "\u003cclient\u003e:client-entities.ts": "1.0.0",
+      "\u003cgraph\u003e:admin-entities.ts": "1.0.0",
+      "\u003cgraph\u003e:entities.ts": "1.0.0",
+      "\u003cgraph\u003e:env.ts": "1.0.0",
+      "\u003cgraph\u003e:event-types.ts": "1.0.0",
+      "\u003cgraph\u003e:navigation.ts": "1.0.0",
+      "\u003cgraph\u003e:permissions.ts": "1.0.0",
+      "\u003cgraph\u003e:subscriptions.ts": "1.0.0",
+      "\u003cproduct\u003e:drizzle.config.ts": "1.0.0",
+      "\u003cproduct\u003e:env.example": "1.0.0",
+      "\u003cproduct\u003e:gitignore": "1.0.0",
+      "\u003cproduct\u003e:layout.tsx": "1.0.0",
+      "\u003cproduct\u003e:migrate.ts": "1.0.0",
+      "\u003cproduct\u003e:next.config.ts": "1.0.0",
+      "\u003cproduct\u003e:package.json": "1.0.0",
+      "\u003cproduct\u003e:tsconfig.json": "1.0.0",
+      "data.files:config.ts": "1.0.0",
+      "data.files:slots": "1.0.0",
+      "docs.generation:config.ts": "1.0.0",
+      "docs.generation:slots": "1.0.0",
+      "kernel.access:slots": "1.0.0",
+      "kernel.admin:slots": "1.0.0",
+      "kernel.identity:auth-routes.ts": "1.0.0",
+      "kernel.identity:slots": "1.0.0",
+      "kernel.mail:mail-config.ts": "1.0.0",
+      "kernel.money:currencies.ts": "1.0.0",
+      "kernel.observability:instrumentation.ts": "1.0.0",
+      "kernel.ui:slots": "1.0.0",
+      "kernel.ui:tokens.css": "1.0.0",
+      "ops.queue:config.ts": "1.0.0",
+      "ops.queue:slots": "1.0.0",
+      "ops.queue:worker.ts": "1.0.0",
+      "pay.card:config.ts": "1.0.0",
+      "pay.card:slots": "1.0.0",
+      "pay.card:webhook-route.ts": "1.0.0",
+      "pay.invoices:config.ts": "1.0.0",
+      "pay.invoices:slots": "1.0.0"
+    }
+  },
+  "files": [
+    {
+      "path": ".env.example",
+      "zone": "seeded",
+      "capability": "\u003cproduct\u003e",
+      "template": "env.example",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": ".gitignore",
+      "zone": "seeded",
+      "capability": "\u003cproduct\u003e",
+      "template": "gitignore",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "drizzle.config.ts",
+      "zone": "managed",
+      "capability": "\u003cproduct\u003e",
+      "template": "drizzle.config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:199711b59c501d378f72ce3ad8f8cf8c54a67902b420dbdae5b35b90e438b32a",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "migrations/client/0001_client_entities.sql",
+      "zone": "managed",
+      "capability": "\u003cclient\u003e",
+      "template": "client-entities.sql",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:a8612d1d1d2975db87ccc2e6b768980a2c4e8d6fb5d8d8c6c916c89a394f1315",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "next.config.ts",
+      "zone": "managed",
+      "capability": "\u003cproduct\u003e",
+      "template": "next.config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:4d166751f9770bbc0f2c795ace0345ce9bb719c646324d36bdc4d8b7985fff3d",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "package.json",
+      "zone": "managed",
+      "capability": "\u003cproduct\u003e",
+      "template": "package.json",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:6e48cdfdea12f1695dc110a30eec7f1ac85f40317a0986427796f761e15887ec",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "scripts/migrate.ts",
+      "zone": "managed",
+      "capability": "\u003cproduct\u003e",
+      "template": "migrate.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:5ab7f2c177a527ae572abfd28b2016cbdf66f891ba5454b8633e980ab38ac0c9",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "src/app/api/webhooks/stripe/route.ts",
+      "zone": "managed",
+      "capability": "pay.card",
+      "template": "webhook-route.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:02b7258efad40ce36a29c2bfa231105f79f60ff9f5fedbdc17c0cabaac9391ee",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30"
+    },
+    {
+      "path": "src/app/auth/[...auth]/route.ts",
+      "zone": "managed",
+      "capability": "kernel.identity",
+      "template": "auth-routes.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:49fcdf993ebbbd77acb848bda573050be16792bb967e223a2a76cd5a581e4ad2",
+      "rendered_inputs_hash": "sha256:d448a661b3979968846e33d09ed858d01776eb05777108c44f92001503d5bcf6"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "zone": "seeded",
+      "capability": "\u003cproduct\u003e",
+      "template": "layout.tsx",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/generated/data.files/config.ts",
+      "zone": "managed",
+      "capability": "data.files",
+      "template": "config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:be988e575618c1ebd3e90dbe4fd81b526a90d977121135a563bf7abdb7d32126",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9"
+    },
+    {
+      "path": "src/generated/docs.generation/config.ts",
+      "zone": "managed",
+      "capability": "docs.generation",
+      "template": "config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:ea35432274e15208753ea1e52f67daaa86d0f6d7823cd929342698ab3c244fb8",
+      "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305"
+    },
+    {
+      "path": "src/generated/env.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "env.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:13bd4a4eb657b861a4a1ca4cb8376185b1775ff9535c39aa961a2f45abb155db",
+      "rendered_inputs_hash": "sha256:d8d27231ef731df2f8ac69f99e2bcd62c4aa1701580ce7a5b96a3a0c6343f48f"
+    },
+    {
+      "path": "src/generated/kernel.access/permissions.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "permissions.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:e54d616e9430cc816ba779006ed845dc21eb807b8e976b952c8c782d06072248",
+      "rendered_inputs_hash": "sha256:adf90ab2b5d56935c1cb84088ee7aa3c47e0cd25b54981909310485c1f5155e2"
+    },
+    {
+      "path": "src/generated/kernel.admin/entities.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "admin-entities.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:3e8eeec3781812c9734fb2bd15278d09303644d7ce69fad3bf83e5543ba6836a",
+      "rendered_inputs_hash": "sha256:7aeab5374443aa42d26e834b264d1a081dd5a33c03cc96344ea1d77c14b43973"
+    },
+    {
+      "path": "src/generated/kernel.data/client-entities.ts",
+      "zone": "managed",
+      "capability": "\u003cclient\u003e",
+      "template": "client-entities.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:aca6c35b931149925e1ea4eed7921823920053f981549674c8aff36db9524491",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba"
+    },
+    {
+      "path": "src/generated/kernel.data/entities.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "entities.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:5ddd3ad2b8776ce28dbff1a9684388c2284d4930cb6f0b9d9f623a80ba4786e1",
+      "rendered_inputs_hash": "sha256:e20d06b0af1f04f188598cc137dc4b4e0b5ca9c6e1ac5de44db734cda26fafcd"
+    },
+    {
+      "path": "src/generated/kernel.events/event-types.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "event-types.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:25a0f34f00f13ccb0a82c0467b45a8d739e743a450dc7f104579df688a5c52ce",
+      "rendered_inputs_hash": "sha256:a5477782bec20bfb19ab4b2964d5f4e8b2365e4972576b93759005e9d75cac56"
+    },
+    {
+      "path": "src/generated/kernel.events/subscriptions.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "subscriptions.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:cb7eb596fa9414fc32a86aebe90ca209b001dc316ea2886b3dcfcf49bc515228",
+      "rendered_inputs_hash": "sha256:a5477782bec20bfb19ab4b2964d5f4e8b2365e4972576b93759005e9d75cac56"
+    },
+    {
+      "path": "src/generated/kernel.mail/config.ts",
+      "zone": "managed",
+      "capability": "kernel.mail",
+      "template": "mail-config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:a0c66e52a11718020416a91bf6abc8c73d8d7a980a0f4e2d0f58f23b4f3a5186",
+      "rendered_inputs_hash": "sha256:0ce3e5487e48643f09c080be58346ce822700cec37f0d89ae0f956b66cadfda8"
+    },
+    {
+      "path": "src/generated/kernel.money/currencies.ts",
+      "zone": "managed",
+      "capability": "kernel.money",
+      "template": "currencies.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:3b46265883bbf54f964ade7573b2aef892ff3b2a0d7f537808f041e66ddae624",
+      "rendered_inputs_hash": "sha256:be3061fb50d7e3a451d93752acc401e9c05d91ff295e2ef6622ca043e531f37b"
+    },
+    {
+      "path": "src/generated/kernel.ui/navigation.ts",
+      "zone": "managed",
+      "capability": "\u003cgraph\u003e",
+      "template": "navigation.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:e88d7836fffc580c50a58c8156acc6a7cc8a55a08aa50c7540aa7d0638a18f8c",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d"
+    },
+    {
+      "path": "src/generated/kernel.ui/tokens.css",
+      "zone": "managed",
+      "capability": "kernel.ui",
+      "template": "tokens.css",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:c66b42c0fd1f9fc954206a36ebe8a7707c4ba5fdc234272ec71300f8e809b3d2",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d"
+    },
+    {
+      "path": "src/generated/ops.queue/config.ts",
+      "zone": "managed",
+      "capability": "ops.queue",
+      "template": "config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:b2e308c03162796a191e076122ca5c054a2ba69471675a056cf6b1eb1cc4aea2",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283"
+    },
+    {
+      "path": "src/generated/ops.queue/worker.ts",
+      "zone": "managed",
+      "capability": "ops.queue",
+      "template": "worker.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:5646ff060cfaf9e55ff92e5d1eba9f400934ba3e87ca7e18f4ac16acbe5a1685",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283"
+    },
+    {
+      "path": "src/generated/pay.card/config.ts",
+      "zone": "managed",
+      "capability": "pay.card",
+      "template": "config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:e88a1c855b5c003b07a5c3cd5fb7ef77a4171c86a0ddbc47ebfdd4df781e0c10",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30"
+    },
+    {
+      "path": "src/generated/pay.invoices/config.ts",
+      "zone": "managed",
+      "capability": "pay.invoices",
+      "template": "config.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:25f524e01bb3581603cc2485f742a594b4259764e9b008247dcbcdea32161e01",
+      "rendered_inputs_hash": "sha256:330eacec988c172bcb4b03b7a054769deeca1577d87b599a9602ce75b0614cbb"
+    },
+    {
+      "path": "src/instrumentation.ts",
+      "zone": "managed",
+      "capability": "kernel.observability",
+      "template": "instrumentation.ts",
+      "template_version": "1.0.0",
+      "generated_hash": "sha256:999d64a9c6a1fdf17430b55c0611fccc16d21898682b91828cecda1534d6b96c",
+      "rendered_inputs_hash": "sha256:d8d27231ef731df2f8ac69f99e2bcd62c4aa1701580ce7a5b96a3a0c6343f48f"
+    },
+    {
+      "path": "src/slots/data.files/allowedTypes.ts",
+      "zone": "seeded",
+      "capability": "data.files",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/data.files/processingPipeline.ts",
+      "zone": "seeded",
+      "capability": "data.files",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/data.files/retentionRules.ts",
+      "zone": "seeded",
+      "capability": "data.files",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/data.files/sizeLimits.ts",
+      "zone": "seeded",
+      "capability": "data.files",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d1b10ceacef7fd20f565062e0f867586a6918daec703f7ebd7fad4b578b245c9",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/docs.generation/brandingOverride.ts",
+      "zone": "seeded",
+      "capability": "docs.generation",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/docs.generation/outputFormats.ts",
+      "zone": "seeded",
+      "capability": "docs.generation",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/docs.generation/templateHelpers.ts",
+      "zone": "seeded",
+      "capability": "docs.generation",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:b7a4d38ed924cc2bbe597b9204125218c249f7453473be86b1e2e0119c0c0305",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.access/permissionResolver.ts",
+      "zone": "seeded",
+      "capability": "kernel.access",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:adf90ab2b5d56935c1cb84088ee7aa3c47e0cd25b54981909310485c1f5155e2",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.access/roleDefinitions.ts",
+      "zone": "seeded",
+      "capability": "kernel.access",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:adf90ab2b5d56935c1cb84088ee7aa3c47e0cd25b54981909310485c1f5155e2",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.admin/bulkAction.ts",
+      "zone": "seeded",
+      "capability": "kernel.admin",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:7aeab5374443aa42d26e834b264d1a081dd5a33c03cc96344ea1d77c14b43973",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.admin/customAdminView.ts",
+      "zone": "seeded",
+      "capability": "kernel.admin",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:7aeab5374443aa42d26e834b264d1a081dd5a33c03cc96344ea1d77c14b43973",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.admin/entityDisplayConfig.ts",
+      "zone": "seeded",
+      "capability": "kernel.admin",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:7aeab5374443aa42d26e834b264d1a081dd5a33c03cc96344ea1d77c14b43973",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.identity/onRegistration.ts",
+      "zone": "seeded",
+      "capability": "kernel.identity",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d448a661b3979968846e33d09ed858d01776eb05777108c44f92001503d5bcf6",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.identity/passwordPolicy.ts",
+      "zone": "seeded",
+      "capability": "kernel.identity",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d448a661b3979968846e33d09ed858d01776eb05777108c44f92001503d5bcf6",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.identity/postLoginRedirect.ts",
+      "zone": "seeded",
+      "capability": "kernel.identity",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:d448a661b3979968846e33d09ed858d01776eb05777108c44f92001503d5bcf6",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.ui/dashboardWidgets.ts",
+      "zone": "seeded",
+      "capability": "kernel.ui",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.ui/logo.ts",
+      "zone": "seeded",
+      "capability": "kernel.ui",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.ui/navigationOrder.ts",
+      "zone": "seeded",
+      "capability": "kernel.ui",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/kernel.ui/theme.ts",
+      "zone": "seeded",
+      "capability": "kernel.ui",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c9ad7270fc6fe92f21b4bd477253553a875610a0c0989c34d275ebea90b1a94d",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/ops.queue/concurrencyLimits.ts",
+      "zone": "seeded",
+      "capability": "ops.queue",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/ops.queue/priorityRules.ts",
+      "zone": "seeded",
+      "capability": "ops.queue",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/ops.queue/retryPolicies.ts",
+      "zone": "seeded",
+      "capability": "ops.queue",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:a0143374ff3cfcbb8d7dea8ffaf8bbed2a863341aeb2be400963256ea0626283",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.card/afterCharge.ts",
+      "zone": "seeded",
+      "capability": "pay.card",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.card/beforeCharge.ts",
+      "zone": "seeded",
+      "capability": "pay.card",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.card/receiptCustomization.ts",
+      "zone": "seeded",
+      "capability": "pay.card",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:c194d745e74e8b9aeb6db661cf64520c43d1c29ece8ead4b1d083be18978ab30",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.invoices/lineItemFormatting.ts",
+      "zone": "seeded",
+      "capability": "pay.invoices",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:330eacec988c172bcb4b03b7a054769deeca1577d87b599a9602ce75b0614cbb",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.invoices/numberingScheme.ts",
+      "zone": "seeded",
+      "capability": "pay.invoices",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:330eacec988c172bcb4b03b7a054769deeca1577d87b599a9602ce75b0614cbb",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "src/slots/pay.invoices/paymentTerms.ts",
+      "zone": "seeded",
+      "capability": "pay.invoices",
+      "template": "slots",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:330eacec988c172bcb4b03b7a054769deeca1577d87b599a9602ce75b0614cbb",
+      "seeded_at": "1.0.0"
+    },
+    {
+      "path": "tsconfig.json",
+      "zone": "seeded",
+      "capability": "\u003cproduct\u003e",
+      "template": "tsconfig.json",
+      "template_version": "1.0.0",
+      "rendered_inputs_hash": "sha256:dfad91a16afbeaf807e489070efaee51f3d2aeee9d877de95716748f37e10fba",
+      "seeded_at": "1.0.0"
+    }
+  ]
+}

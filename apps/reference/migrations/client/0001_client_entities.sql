@@ -1,0 +1,2 @@
+-- Tables for entities declared in the manifest.
+-- Generated from `entities:` — edit the manifest, not this file.
