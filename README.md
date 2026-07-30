@@ -44,6 +44,8 @@ Stripe test-mode charge are untested end to end. That is what remains of Phase 1
 | Engine — resolution, validation, diagnostics | [`internal/`](internal/) |
 | Annotated reference manifest | [`examples/acme.forge.yaml`](examples/acme.forge.yaml) |
 | Phase 1 reference product | [`examples/phase1/forge.yaml`](examples/phase1/forge.yaml) |
+| **Capability inventory and build plan** | [`docs/capability-status.md`](docs/capability-status.md) |
+| Stripe setup | [`docs/stripe.md`](docs/stripe.md) |
 | Agent brief | [`docs/brief.md`](docs/brief.md) |
 
 ## Assumptions
