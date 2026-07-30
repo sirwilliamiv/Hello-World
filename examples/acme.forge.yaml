@@ -1,0 +1,280 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Annotated reference manifest — Acme Restoration, a field-services contractor.
+#
+# This is the ONLY artifact a human edits during routine onboarding. It declares
+# what the product is; it never says how to build it. Validate it with:
+#
+#     forge validate -f examples/acme.forge.yaml
+#
+# Schema: schemas/manifest.schema.json
+#
+# Read this file top to bottom once. Every section is commented with the rule
+# from ARCHITECTURE.md or the catalog that governs it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+manifest_version: 1
+
+# ── Catalog pin ──────────────────────────────────────────────────────────────
+# An immutable, dated snapshot verified by the full contract test suite. Pinning
+# rather than floating is what makes this build reproducible eight months from
+# now. `snapshot: latest` is refused by validate unless --allow-unpinned.
+catalog:
+  snapshot: "2026-07-15"
+
+# ── Identity ─────────────────────────────────────────────────────────────────
+product:
+  id: acme-restoration        # Stable slug. Used in resource names, database
+                              # names, and state paths — it can never change
+                              # after the first apply.
+  name: Acme Restoration
+  description: Job scheduling, quoting, and margin tracking for a water and fire restoration contractor.
+  vertical: field-services    # Informational in Phase 1. From Phase 6 this
+                              # preselects a capability set.
+  client:
+    name: Acme Restoration LLC
+    legal_entity: Acme Restoration LLC   # pay.invoices numbers gaplessly and
+                                         # sequentially PER LEGAL ENTITY, so it
+                                         # reads this field rather than guessing.
+    contact_email: ops@acmerestoration.example
+    country: US
+
+# ── Branding ─────────────────────────────────────────────────────────────────
+# Branding a client is a kernel.ui token change and NOTHING else. Capabilities
+# never ship their own styles, so this block is the entire visual surface —
+# which is also why a rebrand never touches the merge path on upgrade.
+branding:
+  tokens:
+    color.brand.primary: "#0B4F6C"
+    color.brand.accent: "#F4A259"
+    color.surface.base: "#FFFFFF"
+    radius.md: "0.375rem"
+  typography:
+    sans: "Inter"
+    mono: "JetBrains Mono"
+  logo:
+    light: assets/logo-light.svg
+    dark: assets/logo-dark.svg
+    favicon: assets/favicon.png
+
+# ── Capabilities ─────────────────────────────────────────────────────────────
+# The kernel is mandatory and implicit. It is NEVER listed here.
+#
+# Only the capabilities the client is actually buying are listed. Hard
+# dependencies resolve automatically and `forge plan` prints each addition with
+# its price and the reason chain that pulled it in, so nothing is a surprise
+# either technically or commercially. For this manifest the resolver adds:
+#
+#   ops.queue        ← docs.extraction, integrate.accounting  (validation ERROR
+#                       without it, not a warning)
+#   data.files       ← docs.extraction, docs.generation, ops.dispatch
+#   ai.gateway       ← docs.extraction
+#   comms.email      ← docs.signature, comms.booking  (upgrades kernel.mail)
+#   comms.sms        ← ops.dispatch
+#   audit.history    ← automation.rules  (upgrades kernel.audit)
+#   docs.generation  ← pay.invoices, docs.signature
+#   pay.card         ← pay.deposits
+#   pay.invoices     ← pay.deposits
+#   integrate.connections ← integrate.accounting, comms.booking
+#
+capabilities:
+  # Getting paid — quote, signature, deposit, balance on completion.
+  - id: pay.deposits
+    config:
+      default_schedule: deposit_then_balance
+      deposit_percent: 30
+    slots:
+      # A slot is the SANCTIONED place for client-specific logic. Forge seeds a
+      # stub here once and then never touches the file again. Editing generated
+      # code instead is what fragments a fleet.
+      releaseConditions: src/slots/pay.deposits/releaseConditions.ts
+
+  - id: pay.invoices
+    config:
+      numbering_scheme: "ACME-{YYYY}-{SEQ:5}"
+      payment_terms_days: 15
+
+  # Documents — quote out, signature back, deposit collected.
+  - id: docs.generation
+  - id: docs.signature
+    config:
+      reminder_days: [3, 7, 14]
+
+  # The composition that makes this feel like one system rather than three tools:
+  # a customer books, a job is scheduled, a deposit is collected, a crew is routed.
+  - id: comms.booking
+  - id: ops.dispatch
+    config:
+      offline_mode: true          # Crews work where there is no signal. The
+                                  # mobile surface reconciles on reconnect.
+      completion_requires_photos: true
+    slots:
+      assignmentRules: src/slots/ops.dispatch/assignmentRules.ts
+
+  # The differentiating capability for this vertical: margin per job, which is
+  # the gap QuickBooks leaves open.
+  - id: ops.jobcosting
+    slots:
+      costCodeStructure: src/slots/ops.jobcosting/costCodeStructure.ts
+      overheadRates: src/slots/ops.jobcosting/overheadRates.ts
+
+  # Supplier invoices arrive by email, are read, coded to a job, and posted.
+  # Humans approve only the exceptions.
+  - id: docs.extraction
+    config:
+      confidence_threshold: 0.92  # Below this, route to human review rather
+                                  # than into downstream systems.
+      intake_email: invoices@acmerestoration.example
+
+  - id: integrate.accounting
+    config:
+      sync_schedule: "0 */4 * * *"
+      conflict_policy: queue_for_human   # Silently overwriting a bookkeeper's
+                                         # correction destroys trust permanently.
+
+  # The client automates their own process without calling us.
+  - id: automation.rules
+
+  - id: ops.reporting
+
+# ── Client-specific entities ─────────────────────────────────────────────────
+# Declared here, NOT invented in code. Because they are declared they become
+# real tables via kernel.data and participate automatically in permissions,
+# audit, admin CRUD, search, and reporting. This is the mechanism that absorbs
+# the long tail of client requests without custom work.
+entities:
+  - name: LossEvent
+    plural: Loss Events
+    description: A single insurable incident at a property, which may span several jobs.
+    searchable: true
+    fields:
+      - { name: claim_number, type: string, required: true, unique: true, indexed: true, label: Claim number }
+      - { name: loss_type, type: string, required: true, enum: [water, fire, mold, storm, other] }
+      - { name: date_of_loss, type: date, required: true }
+      - { name: carrier, type: string, label: Insurance carrier }
+      - { name: adjuster_email, type: email }
+      - { name: deductible, type: money }
+      - { name: notes, type: text }
+
+  - name: PropertyContact
+    description: The person on site, who is frequently not the person paying.
+    personal_data: true             # data.privacy is NOT selected in this
+                                    # manifest, so this is informational here.
+                                    # If it were selected, validation would
+                                    # require deletion_strategy below.
+    deletion_strategy: anonymize
+    fields:
+      - { name: full_name, type: string, required: true }
+      - { name: phone, type: phone, required: true }
+      - { name: email, type: email }
+      - { name: relationship, type: string, enum: [owner, tenant, property_manager, adjuster] }
+      - { name: loss_event, type: "ref:LossEvent", required: true, indexed: true }
+
+# ── Integrations ─────────────────────────────────────────────────────────────
+# Every credential is a secret_ref — a NAME, never a value. This file is
+# committed and may be shared with the client.
+#
+#   validate  calls secrets.exists(ref). It never reads the value.
+#   apply     resolves values in memory, hands them to providers, and never
+#             writes them to state, to a generated file, or to a log.
+#
+# Generated code reads these from the environment at runtime. Forge generates
+# the environment variable SCHEMA (src/generated/env.ts, failing fast at boot on
+# a missing variable) and never the values.
+integrations:
+  stripe:
+    credentials:
+      STRIPE_SECRET_KEY:      { secret_ref: acme/stripe_secret_key }
+      STRIPE_WEBHOOK_SECRET:  { secret_ref: acme/stripe_webhook_secret }
+    settings:
+      statement_descriptor: ACME RESTORATION
+
+  quickbooks:
+    provider: quickbooks_online
+    credentials:
+      QBO_CLIENT_ID:     { secret_ref: acme/qbo_client_id }
+      QBO_CLIENT_SECRET: { secret_ref: acme/qbo_client_secret }
+    settings:
+      realm_environment: production
+
+  twilio:
+    credentials:
+      TWILIO_ACCOUNT_SID: { secret_ref: acme/twilio_account_sid }
+      TWILIO_AUTH_TOKEN:  { secret_ref: acme/twilio_auth_token }
+    settings:
+      messaging_service_sid: MG_placeholder    # Not a secret; a routing handle.
+      quiet_hours: { start: "21:00", end: "08:00" }   # Defaults ON. Opt-out
+                                                      # handling is enforced in
+                                                      # the capability, not left
+                                                      # to the client.
+
+  anthropic:
+    credentials:
+      ANTHROPIC_API_KEY: { secret_ref: acme/anthropic_api_key }
+    settings:
+      # Every AI capability routes through ai.gateway. A direct provider call
+      # from any other capability is a CI failure.
+      monthly_budget_minor: 40000     # $400.00. Enforced BEFORE the call, not
+                                      # discovered on the invoice.
+
+# ── Environments ─────────────────────────────────────────────────────────────
+# Each entry becomes a workspace: "<product.id>/<environment>". Fleet operations
+# iterate over workspaces.
+environments:
+  development:
+    provider: local               # Codegen only. Docker Postgres. No cloud.
+    secrets:
+      provider: file
+      path: .forge/secrets.json   # Gitignored; forge init generates the entry.
+    database:
+      url: { secret_ref: local/database_url }
+
+  staging:
+    provider: gcp
+    project_id: acme-restoration-staging
+    region: us-central1
+    domain: staging.acmerestoration.example
+    secrets:
+      provider: gcp_secret_manager
+      prefix: "acme-staging/"
+    database:
+      tier: db-g1-small
+      backups: false
+    scale: { min_instances: 0, max_instances: 2 }
+    capability_overrides:
+      # Use sparingly. Divergence between staging and production is how
+      # surprises reach a client.
+      docs.extraction: { confidence_threshold: 0.5 }
+
+  production:
+    provider: gcp
+    project_id: acme-restoration-prod
+    region: us-central1
+    domain: app.acmerestoration.example
+    secrets:
+      provider: gcp_secret_manager
+      prefix: "acme-production/"
+    database:
+      tier: db-custom-2-7680
+      backups: true
+    scale: { min_instances: 1, max_instances: 10 }
+
+# ── Repository ───────────────────────────────────────────────────────────────
+repository:
+  url: https://github.com/originplatformlabs/acme-restoration-app
+  default_branch: main
+  upgrade_strategy: pull_request    # `forge fleet apply` lands upgrades as a PR
+                                    # per client, so a fleet-wide change is
+                                    # reviewable rather than pushed blind.
+
+# ── Commercial ───────────────────────────────────────────────────────────────
+# Inputs to `forge quote`. The engagement price is COMPUTED from the resolved
+# graph — capability list prices plus a counted integration premium — and is
+# never typed in here. `forge quote` prints the term breakdown so a proposal can
+# justify the integration line item to a buyer.
+commercial:
+  currency: USD
+  integration_rate_minor: 55000     # $550.00 per unit of computed weight.
+  discount_minor: -250000           # -$2,500.00 introductory adjustment.
+  notes: |
+    Phase one covers quote-to-cash and dispatch. Accounts payable extraction is
+    staged for month two once the intake mailbox is live.

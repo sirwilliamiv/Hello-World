@@ -1,0 +1,38 @@
+# Phase 1 reference product. Two capabilities selected; the resolver is expected
+# to add docs.generation, data.files, and ops.queue, and to supersede kernel.work.
+manifest_version: 1
+catalog:
+  snapshot: "2026-07-15"
+product:
+  id: phase1-reference
+  name: Phase 1 Reference
+  client:
+    name: Origin Platform Labs LLC
+    legal_entity: Origin Platform Labs LLC
+capabilities:
+  - id: pay.card
+  - id: pay.invoices
+integrations:
+  stripe:
+    credentials:
+      STRIPE_SECRET_KEY: { secret_ref: phase1/stripe_secret_key }
+      STRIPE_WEBHOOK_SECRET: { secret_ref: phase1/stripe_webhook_secret }
+  storage:
+    credentials:
+      STORAGE_BUCKET: { secret_ref: phase1/storage_bucket }
+      STORAGE_CREDENTIALS: { secret_ref: phase1/storage_credentials }
+  queue:
+    credentials:
+      QUEUE_URL: { secret_ref: phase1/queue_url }
+  mail:
+    credentials:
+      MAIL_DSN: { secret_ref: phase1/mail_dsn }
+environments:
+  development:
+    provider: local
+    secrets:
+      provider: file
+      path: .forge/secrets.json
+commercial:
+  currency: USD
+  integration_rate_minor: 55000

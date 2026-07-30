@@ -1,0 +1,4 @@
+import { registerCurrency } from '@forge/kernel-money'
+
+// Integer minor units only. Floating point currency is a defect.
+registerCurrency({ code: 'USD', minorUnits: 2 })

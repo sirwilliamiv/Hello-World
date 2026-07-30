@@ -1,0 +1,16 @@
+import { registerEntity } from '@forge/kernel-data'
+import './client-entities'
+
+// Entities owned by capabilities in the resolved graph. Client-declared
+// entities register from ./client-entities, which is generated from the
+// manifest and scales with the client's data model rather than with this
+// capability — see ARCHITECTURE.md section 9.1.
+{{- range .Graph.Entities }}{{ if not .Client }}
+registerEntity({
+  name: {{ .Name | quote }},
+  owner: {{ .Capability | quote }},
+  tenantScoped: {{ .TenantScoped }},
+  appendOnly: {{ .AppendOnly }},
+  personalData: {{ .PersonalData }},
+})
+{{- end }}{{ end }}

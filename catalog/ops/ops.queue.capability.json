@@ -1,0 +1,402 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "ops.queue",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Background Processing",
+  "tier": "upgrade",
+  "trigger": "Something in your process takes minutes rather than seconds, and you do not want the screen to freeze or the work to be lost.",
+  "price": {
+    "model": "fixed",
+    "amount_minor": 550000,
+    "currency": "USD"
+  },
+  "integration_weight": 2,
+  "summary": "Hard dependency for docs.extraction, automation.rules, and every integration capability. Validation raises an error rather than a warning when those are selected without it. Supersedes kernel.work: enqueue() and schedule() keep their signatures, so no consumer changes, but the work is now durable, retried, and observable.",
+  "package": {
+    "name": "@forge/ops-queue"
+  },
+  "upgrades": {
+    "id": "kernel.work",
+    "migration": "20260701_upgrade_kernel_work_to_ops_queue",
+    "interface_exceptions": []
+  },
+  "requires": [
+    {
+      "id": "kernel.events",
+      "range": "^1.0.0",
+      "reason": "Job lifecycle is published onto the bus so the monitor and observability can see it."
+    }
+  ],
+  "enhances": [
+    {
+      "target": "performs_async_work",
+      "unlocks": "durable retry, dead-lettering, concurrency limits, and replay for every capability doing asynchronous work"
+    }
+  ],
+  "owns": [
+    {
+      "name": "QueuedJob",
+      "kind": "table",
+      "tenant_scoped": false
+    },
+    {
+      "name": "JobAttempt",
+      "kind": "table",
+      "tenant_scoped": false,
+      "append_only": true,
+      "description": "Append-only attempt history. Retained so a flapping job's failure pattern is visible rather than overwritten."
+    },
+    {
+      "name": "DeadLetterEntry",
+      "kind": "table",
+      "tenant_scoped": false
+    },
+    {
+      "name": "ScheduledJob",
+      "kind": "table",
+      "tenant_scoped": false
+    }
+  ],
+  "publishes": [
+    {
+      "name": "job.enqueued",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.started",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.succeeded",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "duration_ms"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.failed",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt",
+          "error"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "will_retry": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.dead_lettered",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempts"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "queue.depth.exceeded",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "queue",
+          "depth",
+          "threshold"
+        ],
+        "properties": {
+          "queue": {
+            "type": "string"
+          },
+          "depth": {
+            "type": "integer"
+          },
+          "threshold": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  ],
+  "exposes": [
+    {
+      "kind": "interface",
+      "name": "enqueue",
+      "signature": "enqueue(job: JobSpec): Promise<JobRef>",
+      "description": "Satisfies kernel.work's enqueue. Same signature, durable semantics."
+    },
+    {
+      "kind": "interface",
+      "name": "schedule",
+      "signature": "schedule(cron: string, job: JobSpec): Promise<JobRef>",
+      "description": "Satisfies kernel.work's schedule."
+    },
+    {
+      "kind": "interface",
+      "name": "replay",
+      "signature": "replay(job: JobRef): Promise<JobRef>",
+      "agent_callable": false
+    },
+    {
+      "kind": "ui_surface",
+      "name": "QueueMonitor"
+    }
+  ],
+  "surfaces": [
+    {
+      "area": "admin",
+      "name": "Queues",
+      "path": "/admin/queues",
+      "permission": "queue.read",
+      "nav": {
+        "label": "Queues",
+        "group": "admin",
+        "order": 80
+      }
+    }
+  ],
+  "registers": [
+    {
+      "registry": "kernel.access:permissions",
+      "entries": [
+        {
+          "action": "queue.read",
+          "default_roles": [
+            "owner",
+            "admin"
+          ]
+        },
+        {
+          "action": "queue.replay",
+          "default_roles": [
+            "owner",
+            "admin"
+          ]
+        }
+      ]
+    },
+    {
+      "registry": "kernel.observability:healthChecks",
+      "entries": [
+        {
+          "name": "queue",
+          "required": true,
+          "description": "Durable queue reachability and depth."
+        }
+      ]
+    }
+  ],
+  "external": [
+    {
+      "service": "Queue backend",
+      "purpose": "Durable job storage, leasing, and scheduling.",
+      "credentials": [
+        {
+          "name": "QUEUE_URL",
+          "description": "Connection string for the queue backend. For the 'postgres' driver this may be the application database URL.",
+          "scope": "environment"
+        }
+      ]
+    }
+  ],
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "driver": {
+        "enum": [
+          "postgres",
+          "redis"
+        ],
+        "default": "postgres",
+        "description": "Phase 1 defaults to the Postgres-backed driver so a local workspace needs no second service. Redis is available where throughput justifies the operational cost."
+      },
+      "max_attempts": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 5
+      },
+      "concurrency": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 10
+      },
+      "depth_alert_threshold": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1000
+      }
+    }
+  },
+  "slots": [
+    {
+      "name": "retryPolicies",
+      "signature": "RetryPoliciesSlot",
+      "when": "when a failed job's next attempt is scheduled",
+      "description": "Client-specific backoff and give-up rules per job kind."
+    },
+    {
+      "name": "concurrencyLimits",
+      "signature": "ConcurrencyLimitsSlot",
+      "when": "when a worker leases work",
+      "description": "Client-specific per-kind concurrency, usually to protect a rate-limited third party."
+    },
+    {
+      "name": "priorityRules",
+      "signature": "PriorityRulesSlot",
+      "when": "when the next job is selected",
+      "description": "Client-specific prioritisation."
+    }
+  ],
+  "tests": {
+    "smoke": [
+      {
+        "name": "work survives a restart",
+        "asserts": "a job enqueued before a process restart still runs after it — the property kernel.work does not have"
+      },
+      {
+        "name": "failures retry then dead-letter",
+        "asserts": "a persistently failing job retries to max_attempts and then dead-letters exactly once"
+      },
+      {
+        "name": "a dead-lettered job replays",
+        "asserts": "replay re-enqueues the job with its original payload intact"
+      }
+    ],
+    "contract": [
+      {
+        "with": "kernel.work",
+        "scenario": "an existing product upgrades from in-process work to the durable queue",
+        "asserts": "every caller of enqueue and schedule continues to compile and run unchanged, and in-flight kernel.work jobs are migrated rather than dropped",
+        "mandatory": true
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "id": "20260701_create_ops_queue",
+      "introduced_in": "1.0.0",
+      "up": "migrations/20260701_create_ops_queue.up.sql",
+      "down": "migrations/20260701_create_ops_queue.down.sql"
+    },
+    {
+      "id": "20260701_upgrade_kernel_work_to_ops_queue",
+      "introduced_in": "1.0.0",
+      "kind": "data",
+      "up": "migrations/20260701_upgrade_kernel_work_to_ops_queue.up.sql",
+      "down": "migrations/20260701_upgrade_kernel_work_to_ops_queue.down.sql",
+      "description": "Moves pending kernel.work jobs into the durable queue. Required by the upgrade declaration: an upgrade with no migration path cannot be applied to a live client."
+    }
+  ],
+  "templates": [
+    {
+      "id": "worker.ts",
+      "version": "1.0.0",
+      "output": "src/generated/ops.queue/worker.ts",
+      "zone": "managed",
+      "description": "Worker entry point with the job registry from the resolved graph."
+    },
+    {
+      "id": "config.ts",
+      "version": "1.0.0",
+      "output": "src/generated/ops.queue/config.ts",
+      "zone": "managed"
+    },
+    {
+      "id": "slots",
+      "version": "1.0.0",
+      "output": "src/slots/ops.queue/",
+      "zone": "seeded"
+    }
+  ]
+}

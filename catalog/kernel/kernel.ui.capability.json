@@ -1,0 +1,135 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.ui",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Design tokens, component library, and application shell",
+  "tier": "kernel",
+  "price": {
+    "model": "included"
+  },
+  "integration_weight": 0,
+  "summary": "The literal design system inside the product system. Capabilities never ship their own styles; they register surfaces into the shell and consume tokens. Branding a client is a token change and nothing else, which is what keeps a client's look out of the merge path entirely.",
+  "package": {
+    "name": "@forge/kernel-ui"
+  },
+  "requires": [],
+  "owns": [
+    {
+      "name": "DesignToken",
+      "kind": "registry",
+      "tenant_scoped": false,
+      "listable": false,
+      "description": "The token set. Manifest branding overrides values here and nowhere else."
+    },
+    {
+      "name": "NavigationEntry",
+      "kind": "registry",
+      "tenant_scoped": false,
+      "listable": false
+    },
+    {
+      "name": "SurfaceRegistration",
+      "kind": "registry",
+      "tenant_scoped": false,
+      "listable": false
+    }
+  ],
+  "exposes": [
+    {
+      "kind": "component",
+      "name": "primitives",
+      "signature": "Button, Input, Select, Table, Dialog, Sheet, Card, Toast, Form, DataGrid",
+      "description": "The component library every capability composes from."
+    },
+    {
+      "kind": "interface",
+      "name": "registerNavItem",
+      "signature": "registerNavItem(entry: NavigationEntry): void"
+    },
+    {
+      "kind": "interface",
+      "name": "registerSurface",
+      "signature": "registerSurface(surface: SurfaceRegistration): void"
+    },
+    {
+      "kind": "registry",
+      "name": "navigation",
+      "description": "Navigation entries contributed by capabilities, ordered by the navigationOrder slot."
+    },
+    {
+      "kind": "registry",
+      "name": "dashboardWidgets",
+      "description": "Widgets contributed to the default dashboard."
+    },
+    {
+      "kind": "interface",
+      "name": "setNavigationPermissionResolver",
+      "signature": "setNavigationPermissionResolver(resolve: (permission: string) => Promise<boolean>): void",
+      "description": "Installed by whichever access capability is active. kernel.ui declares no dependency on access so that a nav entry's `permission` can be honoured without the shell importing an access layer it may not have. Unresolved permissions fail closed — the entry is hidden."
+    }
+  ],
+  "slots": [
+    {
+      "name": "theme",
+      "signature": "ThemeSlot",
+      "when": "at token resolution",
+      "description": "Client-specific token overrides beyond what manifest branding expresses."
+    },
+    {
+      "name": "logo",
+      "signature": "LogoSlot",
+      "when": "when the shell renders the brand mark",
+      "description": "Client logo component, for cases a static asset cannot express."
+    },
+    {
+      "name": "navigationOrder",
+      "signature": "NavigationOrderSlot",
+      "when": "when the nav registry is resolved",
+      "description": "Client-specific ordering and grouping of registered navigation entries."
+    },
+    {
+      "name": "dashboardWidgets",
+      "signature": "DashboardWidgetsSlot",
+      "when": "when the dashboard is composed",
+      "description": "Client-specific widget selection and arrangement."
+    }
+  ],
+  "tests": {
+    "smoke": [
+      {
+        "name": "shell renders with branding applied",
+        "asserts": "the application shell mounts and resolves manifest brand tokens"
+      },
+      {
+        "name": "registered nav entries appear",
+        "asserts": "every capability surface declaring a nav entry is reachable from the shell"
+      }
+    ]
+  },
+  "migrations": [],
+  "templates": [
+    {
+      "id": "tokens.css",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.ui/tokens.css",
+      "zone": "managed",
+      "description": "Token values resolved from manifest branding. This file is the entire client-branding surface."
+    },
+    {
+      "id": "navigation.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.ui/navigation.ts",
+      "zone": "managed",
+      "description": "Navigation resolved from the surfaces declared across the resolved graph.",
+      "scope": "graph"
+    },
+    {
+      "id": "slots",
+      "version": "1.0.0",
+      "output": "src/slots/kernel.ui/",
+      "zone": "seeded"
+    }
+  ]
+}

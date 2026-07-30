@@ -1,0 +1,148 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "pay.invoices",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Invoices and Receipts",
+  "tier": "capability",
+  "trigger": "You want professional documents sent the moment something is paid or owed.",
+  "price": { "model": "fixed", "amount_minor": 350000, "currency": "USD" },
+  "integration_weight": 3,
+  "summary": "Invoice numbering must be gapless and sequential per legal entity. This is a common audit finding and is worth getting right in the capability rather than per client — the sequence is allocated inside the insert transaction, so a rolled-back invoice does not burn a number and two concurrent inserts cannot share one.",
+
+  "package": { "name": "@forge/pay-invoices" },
+
+  "requires": [
+    { "id": "kernel.money", "range": "^1.0.0", "reason": "Line totals, tax, and balances are Money." },
+    { "id": "docs.generation", "range": "^1.0.0", "reason": "An invoice is rendered to a PDF through the template engine, so branding stays consistent with the product." }
+  ],
+
+  "enhances": [
+    { "target": "pay.subscriptions", "range": "^1.0.0", "unlocks": "a renewal issues an invoice automatically" },
+    { "target": "pay.deposits", "range": "^1.0.0", "unlocks": "milestones bill as invoices against a schedule" },
+    { "target": "pay.tax", "range": "^1.0.0", "unlocks": "calculated tax appears as invoice lines" },
+    { "target": "integrate.accounting", "range": "^1.0.0", "unlocks": "invoices post to the accounting system with an external reference retained" },
+    { "target": "comms.email", "range": "^1.0.0", "unlocks": "invoices and receipts are delivered and their opens tracked" }
+  ],
+
+  "owns": [
+    { "name": "Invoice", "kind": "table", "personal_data": true, "listable": true,
+      "privacy": { "export_handler": "exportInvoices", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeInvoices",
+                   "retention_note": "Financial record. Anonymised rather than deleted so the sequence stays gapless and the ledger reconciles." } },
+    { "name": "InvoiceLine", "kind": "table", "listable": false },
+    { "name": "Receipt", "kind": "table", "personal_data": true, "append_only": true,
+      "privacy": { "export_handler": "exportReceipts", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeReceipts",
+                   "retention_note": "As Invoice." } },
+    { "name": "CreditNote", "kind": "table", "append_only": true,
+      "description": "Corrections are credit notes, never edits to an issued invoice." },
+    { "name": "InvoiceSequence", "kind": "table", "tenant_scoped": true, "listable": false,
+      "description": "Per-legal-entity counter. Allocated inside the invoice insert transaction, which is what makes numbering gapless under concurrency." }
+  ],
+
+  "publishes": [
+    { "name": "invoice.created", "contract_version": 1,
+      "payload": { "type": "object", "required": ["invoice_id", "number", "customer_id", "total_minor", "currency", "due_at"],
+        "properties": { "invoice_id": { "type": "string" }, "number": { "type": "string" },
+                        "customer_id": { "type": "string" }, "total_minor": { "type": "integer" },
+                        "currency": { "type": "string" }, "due_at": { "type": "string" },
+                        "legal_entity": { "type": "string" } } } },
+    { "name": "invoice.sent", "contract_version": 1,
+      "payload": { "type": "object", "required": ["invoice_id", "channel"],
+        "properties": { "invoice_id": { "type": "string" }, "channel": { "type": "string" }, "recipient": { "type": "string" } } } },
+    { "name": "invoice.paid", "contract_version": 1,
+      "payload": { "type": "object", "required": ["invoice_id", "paid_minor", "currency"],
+        "properties": { "invoice_id": { "type": "string" }, "paid_minor": { "type": "integer" },
+                        "currency": { "type": "string" }, "charge_id": { "type": "string" } } } },
+    { "name": "invoice.overdue", "contract_version": 1,
+      "payload": { "type": "object", "required": ["invoice_id", "days_overdue", "outstanding_minor"],
+        "properties": { "invoice_id": { "type": "string" }, "days_overdue": { "type": "integer" },
+                        "outstanding_minor": { "type": "integer" } } } },
+    { "name": "invoice.voided", "contract_version": 1,
+      "payload": { "type": "object", "required": ["invoice_id", "reason"],
+        "properties": { "invoice_id": { "type": "string" }, "reason": { "type": "string" },
+                        "credit_note_id": { "type": "string" } } } }
+  ],
+
+  "consumes": [
+    { "name": "payment.succeeded", "contract_versions": [1], "required": false,
+      "reason": "mark the matching invoice paid and issue a receipt", "handler": "applyPayment" },
+    { "name": "payment.refunded", "contract_versions": [1], "required": false,
+      "reason": "issue a credit note against the original invoice", "handler": "creditOnRefund" },
+    { "name": "milestone.due", "contract_versions": [1], "required": false,
+      "reason": "issue an invoice for a due milestone when pay.deposits is present", "handler": "invoiceMilestone" },
+    { "name": "order.placed", "contract_versions": [1], "required": false,
+      "reason": "issue an invoice for a placed order when commerce.catalog is present", "handler": "invoiceOrder" }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "issue", "signature": "issue(input: InvoiceInput): Promise<Invoice>",
+      "agent_callable": true, "consequence": "external_communication",
+      "description": "Agent-callable with approval: issuing an invoice is an outbound communication with financial meaning." },
+    { "kind": "interface", "name": "void", "signature": "void(invoice: InvoiceRef, reason: string): Promise<CreditNote>",
+      "agent_callable": false },
+    { "kind": "component", "name": "InvoiceList" },
+    { "kind": "route", "name": "invoices", "path": "/api/invoices/*" }
+  ],
+
+  "surfaces": [
+    { "area": "app", "name": "Invoices", "path": "/invoices", "permission": "invoice.read",
+      "nav": { "label": "Invoices", "group": "billing", "order": 10 } },
+    { "area": "admin", "name": "InvoiceAdmin", "path": "/admin/invoices", "permission": "invoice.manage" },
+    { "area": "document", "name": "InvoicePdf", "description": "Rendered through docs.generation so it carries the client's kernel.ui tokens." }
+  ],
+
+  "registers": [
+    { "registry": "kernel.access:permissions",
+      "entries": [
+        { "action": "invoice.read", "default_roles": ["owner", "admin", "member"] },
+        { "action": "invoice.manage", "default_roles": ["owner", "admin"] },
+        { "action": "invoice.void", "default_roles": ["owner"] }
+      ] }
+  ],
+
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "numbering_scheme": { "type": "string", "default": "INV-{YYYY}-{SEQ:5}",
+        "description": "Tokens: {YYYY}, {YY}, {MM}, {SEQ:n}. Must contain {SEQ:n} or validation fails, because a scheme without a sequence cannot be gapless." },
+      "payment_terms_days": { "type": "integer", "minimum": 0, "default": 30 },
+      "overdue_check_cron": { "type": "string", "default": "0 6 * * *" }
+    }
+  },
+
+  "slots": [
+    { "name": "numberingScheme", "signature": "NumberingSchemeSlot", "when": "when an invoice number is allocated",
+      "description": "Client-specific numbering beyond the configured token scheme. Must remain gapless per legal entity; the generated contract test asserts it." },
+    { "name": "lineItemFormatting", "signature": "LineItemFormattingSlot", "when": "when invoice lines are rendered",
+      "description": "Client-specific line descriptions, grouping, and ordering." },
+    { "name": "paymentTerms", "signature": "PaymentTermsSlot", "when": "when an invoice due date is computed",
+      "description": "Client-specific terms, such as per-customer net days." }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "invoice issues and renders", "asserts": "issuing an invoice produces a numbered record and a rendered PDF" },
+      { "name": "numbering is gapless under concurrency", "asserts": "100 concurrent issues produce 100 consecutive numbers with no gaps and no duplicates" },
+      { "name": "a rolled-back insert does not burn a number", "asserts": "a failed invoice insert leaves the sequence unchanged" }
+    ],
+    "contract": [
+      { "with": "pay.card", "scenario": "a payment succeeds against an open invoice",
+        "asserts": "the invoice is marked paid, a receipt is issued, and a redelivered payment.succeeded does not double-apply" },
+      { "with": "docs.generation", "scenario": "an invoice is rendered after its template is updated",
+        "asserts": "the rendering uses the template version pinned at issue time, so a reissued historical invoice is byte-identical" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260701_create_pay_invoices", "introduced_in": "1.0.0",
+      "up": "migrations/20260701_create_pay_invoices.up.sql",
+      "down": "migrations/20260701_create_pay_invoices.down.sql" }
+  ],
+
+  "templates": [
+    { "id": "config.ts", "version": "1.0.0", "output": "src/generated/pay.invoices/config.ts", "zone": "managed" },
+    { "id": "slots", "version": "1.0.0", "output": "src/slots/pay.invoices/", "zone": "seeded" }
+  ]
+}

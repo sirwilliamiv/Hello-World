@@ -1,0 +1,15 @@
+import { configureFiles } from '@forge/data-files'
+import { env } from '@/generated/env'
+import * as slots from '@/slots/data.files'
+
+configureFiles({
+  driver: {{ cfgStr .Config "driver" "local" | quote }},
+  bucket: env.STORAGE_BUCKET,
+  credentials: env.STORAGE_CREDENTIALS,
+  maxSizeBytes: {{ cfg .Config "max_size_bytes" 26214400 }},
+  allowedContentTypes: {{ cfg .Config "allowed_content_types" (list) | json }},
+  // A file is quarantined until it clears scanning; file.uploaded is published
+  // only after it does, so no consumer ever sees an unscanned object.
+  scanPolicy: {{ cfgStr .Config "scan_policy" "require_clean" | quote }},
+  slots,
+})

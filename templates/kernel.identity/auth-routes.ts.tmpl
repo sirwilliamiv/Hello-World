@@ -1,0 +1,9 @@
+import { authHandler } from '@forge/kernel-identity'
+import * as slots from '@/slots/kernel.identity'
+
+// Mounts the package's auth handler. Configuration only — the implementation
+// lives in @forge/kernel-identity and upgrades with its version.
+const handler = authHandler({ slots })
+
+export const GET = handler
+export const POST = handler

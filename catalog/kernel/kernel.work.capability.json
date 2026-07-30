@@ -1,0 +1,181 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.work",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "In-process background work",
+  "tier": "kernel",
+  "price": {
+    "model": "included"
+  },
+  "integration_weight": 0,
+  "summary": "Deliberately minimal. Adequate for email sending and light async work. Any client with meaningful volume, long-running work, or a need for retry guarantees requires the ops.queue upgrade. Validation warns when a capability declaring performs_async_work runs on kernel work, and errors for docs.extraction, automation.rules, and every integration capability.",
+  "package": {
+    "name": "@forge/kernel-work"
+  },
+  "requires": [
+    {
+      "id": "kernel.events",
+      "range": "^1.0.0",
+      "reason": "Job lifecycle is published onto the bus."
+    }
+  ],
+  "owns": [
+    {
+      "name": "Job",
+      "kind": "table",
+      "tenant_scoped": false,
+      "description": "In-process job record. No durable retry, no dead-letter, no cross-process concurrency control — that is what ops.queue adds."
+    }
+  ],
+  "exposes": [
+    {
+      "kind": "interface",
+      "name": "enqueue",
+      "signature": "enqueue(job: JobSpec): Promise<JobRef>",
+      "description": "ops.queue must satisfy this signature to upgrade this capability."
+    },
+    {
+      "kind": "interface",
+      "name": "schedule",
+      "signature": "schedule(cron: string, job: JobSpec): Promise<JobRef>"
+    }
+  ],
+  "tests": {
+    "smoke": [
+      {
+        "name": "enqueued work runs",
+        "asserts": "an enqueued job executes and its completion is observable"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "id": "20260601_create_kernel_work",
+      "introduced_in": "1.0.0",
+      "up": "migrations/20260601_create_kernel_work.up.sql",
+      "down": "migrations/20260601_create_kernel_work.down.sql"
+    }
+  ],
+  "templates": [
+    {
+      "id": "jobs.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.work/jobs.ts",
+      "zone": "managed",
+      "description": "Job registrations collected from the resolved graph.",
+      "scope": "graph"
+    }
+  ],
+  "publishes": [
+    {
+      "name": "job.enqueued",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Emitted by whichever capability occupies the work slot. When ops.queue supersedes this capability, ops.queue publishes these names instead — which is why two publishers of one event name never coexist."
+    },
+    {
+      "name": "job.started",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.succeeded",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "duration_ms"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "duration_ms": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    {
+      "name": "job.failed",
+      "contract_version": 1,
+      "payload": {
+        "type": "object",
+        "required": [
+          "job_id",
+          "kind",
+          "attempt",
+          "error"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "will_retry": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  ],
+  "registers": [
+    {
+      "registry": "kernel.observability:healthChecks",
+      "entries": [
+        {
+          "name": "queue",
+          "required": true,
+          "description": "Work backend reachability. ops.queue replaces this contribution when it supersedes this capability."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+export async function register() {
+  const { initObservability } = await import('@forge/kernel-observability')
+  await initObservability({ product: {{ .Product.ID | quote }}, environment: {{ .Environment | quote }} })
+}

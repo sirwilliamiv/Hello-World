@@ -1,0 +1,8 @@
+# The generated client application is a workspace member in Phase 1, so its
+# `workspace:*` dependencies on @forge/* resolve to the local packages without a
+# publish cycle. From Phase 2 clients depend on published versions from a private
+# registry instead — a client repository that can only build inside our monorepo
+# is not a deliverable we can hand over (ARCHITECTURE.md §14.3).
+packages:
+  - 'packages/*'
+  - 'apps/*'

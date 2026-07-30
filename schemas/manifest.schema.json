@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://forge.originplatformlabs.com/schemas/manifest.schema.json",
+  "title": "Forge Product Manifest",
+  "description": "One declarative file per product (forge.yaml). The only artifact a human edits during routine onboarding. Rich enough to drive a build, a proposal, and a price. Contains NO secret values — credentials are referenced by name and resolved from a secrets provider at apply time.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_version", "catalog", "product", "environments"],
+
+  "properties": {
+    "manifest_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Version of this manifest format."
+    },
+
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot"],
+      "description": "The immutable catalog snapshot this product is pinned to. Pinning rather than floating is what makes a build reproducible eight months later.",
+      "properties": {
+        "snapshot": {
+          "type": "string",
+          "pattern": "^(\\d{4}-\\d{2}-\\d{2}|latest)$",
+          "description": "A dated snapshot id, or 'latest' which is refused by validate unless --allow-unpinned is passed.",
+          "examples": ["2026-07-15"]
+        }
+      }
+    },
+
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "client"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,38}[a-z0-9]$",
+          "description": "Stable slug. Used in resource names, database names, and state paths, so it may never change after the first apply."
+        },
+        "name": { "type": "string", "minLength": 1, "description": "Human product name, shown in the application shell." },
+        "client": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "description": "Used in proposals and generated documents.",
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "legal_entity": {
+              "type": "string",
+              "description": "Legal entity name. Invoice numbering is gapless and sequential per legal entity, so pay.invoices reads this."
+            },
+            "contact_email": { "type": "string", "format": "email" },
+            "country": { "type": "string", "pattern": "^[A-Z]{2}$", "default": "US" }
+          }
+        },
+        "description": { "type": "string" },
+        "vertical": {
+          "type": "string",
+          "description": "Vertical template this product was initialised from. Informational in Phase 1; drives capability preselection from Phase 6.",
+          "examples": ["field-services", "professional-services"]
+        }
+      }
+    },
+
+    "branding": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Branding a client is a kernel.ui token change and nothing else. Capabilities never ship their own styles.",
+      "properties": {
+        "tokens": {
+          "type": "object",
+          "description": "Overrides for the kernel.ui token set. Unspecified tokens keep their default.",
+          "additionalProperties": { "type": ["string", "number"] },
+          "examples": [{ "color.brand.primary": "#0F5132", "radius.md": "0.5rem" }]
+        },
+        "logo": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "light": { "type": "string", "description": "Repository-relative path to the light-theme logo." },
+            "dark": { "type": "string" },
+            "favicon": { "type": "string" }
+          }
+        },
+        "typography": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sans": { "type": "string" },
+            "mono": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "array",
+      "description": "Selected capabilities. The kernel is mandatory and implicit — it is never listed here. Hard dependencies resolve automatically and the plan shows each addition and its price, so nothing is a surprise commercially or technically.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*\\.[a-z][a-z0-9_]*$",
+            "description": "Must exist in the pinned catalog snapshot, and must not be a kernel capability."
+          },
+          "version": {
+            "type": "string",
+            "description": "Optional version range, narrowing what the snapshot offers. Omit in the normal case and let the snapshot decide.",
+            "examples": ["^2.0.0"]
+          },
+          "config": {
+            "type": "object",
+            "description": "Validated against this capability's declared config schema at validate time."
+          },
+          "slots": {
+            "type": "object",
+            "description": "Map of slot name to the repository-relative implementation path. Forge seeds a stub on first apply and never touches the file again.",
+            "additionalProperties": { "type": "string" },
+            "examples": [{ "beforeCharge": "src/slots/pay.card/beforeCharge.ts" }]
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "false: retained in the manifest for documentation but excluded from the graph. Disabling a capability with applied migrations produces a destructive plan."
+          }
+        }
+      },
+      "default": []
+    },
+
+    "entities": {
+      "type": "array",
+      "description": "Client-specific domain entities, declared here rather than invented in code. Because they are declared, they participate in permissions, audit, search, admin, and reporting automatically.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "fields"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Za-z0-9]*$",
+            "description": "PascalCase. Must not collide with any entity owned by a capability in the resolved graph."
+          },
+          "plural": { "type": "string", "description": "Overrides naive pluralisation in admin and navigation labels." },
+          "description": { "type": "string" },
+          "personal_data": {
+            "type": "boolean",
+            "default": false,
+            "description": "When data.privacy is enabled, an entity with this flag must declare a deletion strategy."
+          },
+          "tenant_scoped": { "type": "boolean", "default": true },
+          "listable": { "type": "boolean", "default": true },
+          "searchable": {
+            "type": "boolean",
+            "default": false,
+            "description": "Indexed by data.search when present. Ignored with a warning when data.search is not in the graph."
+          },
+          "deletion_strategy": { "enum": ["delete", "anonymize", "retain_under_legal_basis"] },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_]*$" },
+                "type": {
+                  "description": "A scalar type, a reference to another entity, or an enum.",
+                  "oneOf": [
+                    {
+                      "enum": [
+                        "string", "text", "integer", "decimal", "boolean",
+                        "date", "datetime", "money", "email", "phone", "url", "json", "file"
+                      ]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^(ref|refs):[A-Z][A-Za-z0-9]*$",
+                      "description": "ref: many-to-one. refs: one-to-many.",
+                      "examples": ["ref:Customer", "refs:SiteVisit"]
+                    }
+                  ]
+                },
+                "required": { "type": "boolean", "default": false },
+                "unique": { "type": "boolean", "default": false },
+                "indexed": { "type": "boolean", "default": false },
+                "default": { "description": "Literal default value. Must type-check against `type`." },
+                "enum": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Restricts a 'string' field to a closed set. Rendered as a select in admin and forms."
+                },
+                "label": { "type": "string" },
+                "help": { "type": "string" }
+              }
+            }
+          }
+        }
+      },
+      "default": []
+    },
+
+    "integrations": {
+      "type": "object",
+      "description": "Configuration for the third-party services declared by selected capabilities. Every value that is a credential is a secret_ref — a NAME, never a value. Validate checks presence and readability only; apply resolves values in memory and never writes them to state, to a generated file, or to a log.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "default": true },
+          "provider": {
+            "type": "string",
+            "description": "Which provider satisfies this integration when a capability supports more than one.",
+            "examples": ["stripe_tax", "avalara", "quickbooks_online", "xero"]
+          },
+          "credentials": {
+            "type": "object",
+            "description": "Map of the credential name declared by the capability to a secret reference.",
+            "additionalProperties": { "$ref": "#/$defs/secretRef" }
+          },
+          "settings": {
+            "type": "object",
+            "description": "Non-secret integration settings, e.g. a sending domain or a sandbox flag."
+          }
+        }
+      },
+      "default": {}
+    },
+
+    "environments": {
+      "type": "object",
+      "description": "One entry per environment. Each becomes a workspace: '<product.id>/<environment>'. Values here override the top-level defaults for that environment.",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-z0-9_-]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["provider"],
+        "properties": {
+          "provider": {
+            "enum": ["local", "gcp"],
+            "description": "local: codegen only, Docker Postgres, no cloud resources. gcp: Cloud Run, Cloud SQL, Secret Manager, Cloud DNS (Phase 4)."
+          },
+          "region": { "type": "string", "examples": ["us-central1"] },
+          "domain": { "type": "string", "examples": ["app.acme.example"] },
+          "project_id": { "type": "string", "description": "GCP project. Required when provider is 'gcp'." },
+          "secrets": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["provider"],
+            "description": "Where secret_ref names resolve for this environment.",
+            "properties": {
+              "provider": { "enum": ["file", "gcp_secret_manager"] },
+              "path": { "type": "string", "description": "For the 'file' provider. Must be gitignored; forge init generates the entry." },
+              "prefix": { "type": "string", "description": "Namespace prepended to every secret_ref name.", "examples": ["acme-production/"] }
+            }
+          },
+          "database": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "tier": { "type": "string", "examples": ["db-g1-small"] },
+              "backups": { "type": "boolean", "default": true },
+              "url": { "$ref": "#/$defs/secretRef", "description": "For provider 'local'; managed for provider 'gcp'." }
+            }
+          },
+          "scale": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min_instances": { "type": "integer", "minimum": 0, "default": 0 },
+              "max_instances": { "type": "integer", "minimum": 1, "default": 10 }
+            }
+          },
+          "capability_overrides": {
+            "type": "object",
+            "description": "Per-environment config overrides, keyed by capability id. Use sparingly — divergence between staging and production is how surprises reach a client.",
+            "additionalProperties": { "type": "object" }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "provider": { "const": "gcp" } }, "required": ["provider"] },
+            "then": { "required": ["project_id", "region"] }
+          }
+        ]
+      }
+    },
+
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Where the generated client application lives.",
+      "properties": {
+        "url": { "type": "string", "examples": ["https://github.com/originplatformlabs/acme-app"] },
+        "default_branch": { "type": "string", "default": "main" },
+        "upgrade_strategy": {
+          "enum": ["pull_request", "direct_push"],
+          "default": "pull_request",
+          "description": "How `forge fleet apply` lands changes. Pull requests are the default so a fleet upgrade is reviewable per client."
+        }
+      }
+    },
+
+    "commercial": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inputs to `forge quote`. The engagement price is computed from the resolved graph — capability list prices plus a counted integration premium — not typed in here.",
+      "properties": {
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$", "default": "USD" },
+        "integration_rate_minor": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Price per unit of computed integration weight, in minor units."
+        },
+        "discount_minor": { "type": "integer", "description": "Absolute adjustment in minor units. Negative is a discount." },
+        "notes": { "type": "string", "description": "Free text carried into the generated proposal." }
+      }
+    }
+  },
+
+  "$defs": {
+    "secretRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["secret_ref"],
+      "description": "A NAME resolved from the environment's secrets provider at apply time. The manifest is committed and may be shared with a client, so it holds no values. Validate calls exists() and never reads the value; apply resolves in memory and never persists it to state, to a generated file, or to a log.",
+      "properties": {
+        "secret_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9/_-]*$",
+          "examples": ["acme/production/stripe_secret_key"]
+        }
+      }
+    }
+  }
+}

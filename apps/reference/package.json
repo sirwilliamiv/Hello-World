@@ -1,0 +1,44 @@
+{
+  "name": "reference",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "tsx src/generated/ops.queue/worker.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "next": "15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "drizzle-orm": "0.44.2",
+    "postgres": "3.4.5",
+    "zod": "3.25.0",
+    "@forge/data-files": "workspace:*",
+    "@forge/docs-generation": "workspace:*",
+    "@forge/kernel-access": "workspace:*",
+    "@forge/kernel-admin": "workspace:*",
+    "@forge/kernel-audit": "workspace:*",
+    "@forge/kernel-data": "workspace:*",
+    "@forge/kernel-events": "workspace:*",
+    "@forge/kernel-identity": "workspace:*",
+    "@forge/kernel-mail": "workspace:*",
+    "@forge/kernel-money": "workspace:*",
+    "@forge/kernel-observability": "workspace:*",
+    "@forge/kernel-ui": "workspace:*",
+    "@forge/ops-queue": "workspace:*",
+    "@forge/pay-card": "workspace:*",
+    "@forge/pay-invoices": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.0",
+    "@types/react": "19.1.0",
+    "drizzle-kit": "0.31.1",
+    "tsx": "4.20.0",
+    "typescript": "5.8.3",
+    "vitest": "3.2.0"
+  }
+}

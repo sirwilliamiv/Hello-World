@@ -1,0 +1,6 @@
+node_modules/
+.next/
+.env
+.env.local
+.forge/secrets.json
+.forge/state.backups/

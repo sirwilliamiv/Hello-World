@@ -1,0 +1,155 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "pay.card",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Card Payments",
+  "tier": "capability",
+  "trigger": "You want to take money without handing someone a card reader or emailing an invoice and waiting.",
+  "price": { "model": "fixed", "amount_minor": 450000, "currency": "USD" },
+  "integration_weight": 2,
+  "summary": "Never stores card data. Payment method references only. All other payment capabilities build on this one.",
+
+  "package": { "name": "@forge/pay-card", "peer_requirements": { "stripe": "^18.0.0" } },
+
+  "requires": [
+    { "id": "kernel.money", "range": "^1.0.0", "reason": "Charge amounts are Money; floating point currency is a defect." },
+    { "id": "kernel.identity", "range": "^1.0.0", "reason": "A stored payment method belongs to a known customer." }
+  ],
+
+  "enhances": [
+    { "target": "pay.invoices", "range": "^1.0.0", "unlocks": "a receipt is issued automatically the moment a charge succeeds" },
+    { "target": "commerce.catalog", "range": "^1.0.0", "unlocks": "checkout takes payment inline rather than redirecting" },
+    { "target": "ops.jobcosting", "range": "^1.0.0", "unlocks": "payments attribute to a job as revenue against its margin" }
+  ],
+
+  "owns": [
+    { "name": "PaymentMethod", "kind": "table", "personal_data": true,
+      "description": "A reference to a payment method held by the provider. Card data never touches our database.",
+      "privacy": { "export_handler": "exportPaymentMethods", "deletion_strategy": "delete", "deletion_handler": "detachPaymentMethods" } },
+    { "name": "Charge", "kind": "table", "append_only": true, "personal_data": true,
+      "description": "Append-only. A charge is a financial record; corrections are refunds, never edits.",
+      "privacy": { "export_handler": "exportCharges", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeCharges",
+                   "retention_note": "Financial records are exempt from deletion and are anonymised so the ledger stays intact." } },
+    { "name": "Refund", "kind": "table", "append_only": true, "personal_data": true,
+      "privacy": { "export_handler": "exportRefunds", "deletion_strategy": "anonymize", "deletion_handler": "anonymizeRefunds",
+                   "retention_note": "As Charge." } }
+  ],
+
+  "publishes": [
+    { "name": "payment.succeeded", "contract_version": 1,
+      "description": "The most widely consumed event in the catalog. Invoices, ledger, deposits, payouts, and job costing all key off it.",
+      "payload": { "type": "object", "required": ["charge_id", "customer_id", "amount_minor", "currency"],
+        "properties": { "charge_id": { "type": "string" }, "customer_id": { "type": "string" },
+                        "amount_minor": { "type": "integer" }, "currency": { "type": "string" },
+                        "payment_method_id": { "type": "string" }, "external_id": { "type": "string" },
+                        "metadata": { "type": "object" } } } },
+    { "name": "payment.failed", "contract_version": 1,
+      "payload": { "type": "object", "required": ["customer_id", "amount_minor", "currency", "reason"],
+        "properties": { "charge_id": { "type": ["string", "null"] }, "customer_id": { "type": "string" },
+                        "amount_minor": { "type": "integer" }, "currency": { "type": "string" },
+                        "reason": { "type": "string" }, "decline_code": { "type": "string" } } } },
+    { "name": "payment.refunded", "contract_version": 1,
+      "payload": { "type": "object", "required": ["refund_id", "charge_id", "amount_minor", "currency"],
+        "properties": { "refund_id": { "type": "string" }, "charge_id": { "type": "string" },
+                        "amount_minor": { "type": "integer" }, "currency": { "type": "string" },
+                        "reason": { "type": "string" } } } },
+    { "name": "payment.method.added", "contract_version": 1,
+      "payload": { "type": "object", "required": ["payment_method_id", "customer_id"],
+        "properties": { "payment_method_id": { "type": "string" }, "customer_id": { "type": "string" },
+                        "brand": { "type": "string" }, "last4": { "type": "string" } } } }
+  ],
+
+  "consumes": [
+    { "name": "identity.user.deleted", "contract_versions": [1], "required": true,
+      "reason": "detach stored payment methods from the provider", "handler": "detachOnUserDeleted" }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "charge",
+      "signature": "charge(amount: Money, customer: CustomerRef, opts?: ChargeOptions): Promise<Charge>",
+      "agent_callable": true, "consequence": "moves_money",
+      "description": "Agent-callable but always requires approval, regardless of trust level, because it moves money." },
+    { "kind": "interface", "name": "refund",
+      "signature": "refund(charge: ChargeRef, amount?: Money): Promise<Refund>",
+      "agent_callable": true, "consequence": "moves_money" },
+    { "kind": "component", "name": "PaymentForm", "signature": "PaymentForm(props: PaymentFormProps): JSX.Element" },
+    { "kind": "route", "name": "payments", "path": "/api/payments/*" },
+    { "kind": "webhook_receiver", "name": "stripeWebhook", "path": "/api/webhooks/stripe",
+      "description": "Signature-verified. An unverified payload is rejected before parsing." }
+  ],
+
+  "surfaces": [
+    { "area": "app", "name": "PaymentMethods", "path": "/settings/payment-methods", "permission": "payment.manage_methods",
+      "nav": { "label": "Payment methods", "group": "settings", "order": 20 } },
+    { "area": "admin", "name": "Charges", "path": "/admin/charges", "permission": "payment.read" }
+  ],
+
+  "registers": [
+    { "registry": "kernel.access:permissions",
+      "entries": [
+        { "action": "payment.read", "default_roles": ["owner", "admin"] },
+        { "action": "payment.charge", "default_roles": ["owner", "admin"] },
+        { "action": "payment.refund", "default_roles": ["owner"] },
+        { "action": "payment.manage_methods", "default_roles": ["owner", "admin", "member"] }
+      ] }
+  ],
+
+  "external": [
+    { "service": "Stripe", "purpose": "Card authorisation, capture, refunds, and stored payment methods.",
+      "credentials": [
+        { "name": "STRIPE_SECRET_KEY", "description": "Stripe secret API key for this environment.", "scope": "environment" },
+        { "name": "STRIPE_WEBHOOK_SECRET", "description": "Signing secret used to verify inbound webhooks.", "scope": "environment" }
+      ] }
+  ],
+
+  "config": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "statement_descriptor": { "type": "string", "maxLength": 22 },
+      "capture_method": { "enum": ["automatic", "manual"], "default": "automatic" },
+      "allowed_currencies": { "type": "array", "items": { "type": "string" }, "default": ["USD"] }
+    }
+  },
+
+  "slots": [
+    { "name": "beforeCharge", "signature": "BeforeChargeSlot", "when": "before a charge is submitted to the provider",
+      "description": "Client-specific fraud screening, spend limits, or rejection. Returning a rejection prevents the charge." },
+    { "name": "afterCharge", "signature": "AfterChargeSlot", "when": "after a charge succeeds, before payment.succeeded is published",
+      "description": "Client-specific bookkeeping or external notification." },
+    { "name": "receiptCustomization", "signature": "ReceiptCustomizationSlot", "when": "when a receipt is rendered",
+      "description": "Client-specific receipt content beyond branding tokens." }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "test-mode charge succeeds", "asserts": "a charge against a Stripe test card succeeds and publishes payment.succeeded",
+        "requires_credentials": true },
+      { "name": "webhook signature is verified", "asserts": "an unsigned or mis-signed webhook payload is rejected with 400 before parsing" },
+      { "name": "no card data is persisted", "asserts": "no column in any owned table accepts a PAN, and the provider reference is opaque" }
+    ],
+    "contract": [
+      { "with": "kernel.identity", "scenario": "a user is deleted while holding a stored payment method",
+        "asserts": "the payment method is detached at the provider and the local record is removed", "mandatory": true },
+      { "with": "pay.invoices", "scenario": "a charge succeeds against an open invoice",
+        "asserts": "the invoice is marked paid exactly once, and a duplicate payment.succeeded delivery does not double-apply" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260701_create_pay_card", "introduced_in": "1.0.0",
+      "up": "migrations/20260701_create_pay_card.up.sql",
+      "down": "migrations/20260701_create_pay_card.down.sql" }
+  ],
+
+  "templates": [
+    { "id": "config.ts", "version": "1.0.0", "output": "src/generated/pay.card/config.ts", "zone": "managed",
+      "description": "Binds manifest config and the credential environment schema. Values are read from the environment at runtime." },
+    { "id": "webhook-route.ts", "version": "1.0.0", "output": "src/app/api/webhooks/stripe/route.ts", "zone": "managed",
+      "description": "Mounts the package's webhook handler. Wiring only." },
+    { "id": "slots", "version": "1.0.0", "output": "src/slots/pay.card/", "zone": "seeded",
+      "description": "Slot stubs, written once and then owned by the client repository." }
+  ]
+}

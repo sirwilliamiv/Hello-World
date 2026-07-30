@@ -1,0 +1,20 @@
+import { registerPermission } from '@forge/kernel-access'
+
+// Collected from every capability's `registers` block in the resolved graph,
+// with the default role grants each capability declared. Adding a capability
+// adds its permissions and their grants here automatically.
+{{- range .Graph.Permissions }}
+registerPermission({
+  action: {{ .Action | quote }},
+  defaultRoles: [{{ range $i, $r := .DefaultRoles }}{{ if $i }}, {{ end }}{{ $r | quote }}{{ end }}],
+  owner: {{ .Capability | quote }},
+})
+{{- end }}
+
+export const PERMISSIONS = [
+{{- range .Graph.Permissions }}
+  {{ .Action | quote }},
+{{- end }}
+] as const
+
+export type Permission = (typeof PERMISSIONS)[number]

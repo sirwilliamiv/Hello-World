@@ -1,0 +1,15 @@
+import { registerNavItems } from '@forge/kernel-ui'
+import { navigationOrder } from '@/slots/kernel.ui/navigationOrder'
+
+// Navigation resolved from the surfaces declared across the graph, then passed
+// through the client's ordering slot.
+const items = [
+{{- range .Graph.NavItems }}
+  { label: {{ .Label | quote }}, path: {{ .Path | quote }}, group: {{ .Group | quote }}, order: {{ .Order }}{{ if .Permission }}, permission: {{ .Permission | quote }}{{ end }} },
+{{- end }}
+]
+
+// registerNavItems hands the slot a context carrying proceed(), rather than
+// calling it positionally. It resolves internally so this file needs no
+// top-level await even though the seeded stub is async.
+registerNavItems(items, navigationOrder)

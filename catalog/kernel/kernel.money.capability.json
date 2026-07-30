@@ -1,0 +1,51 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.money",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "Currency, amounts, and rounding",
+  "tier": "kernel",
+  "price": { "model": "included" },
+  "integration_weight": 0,
+  "summary": "Integer minor units only. Any capability handling money uses this type. Floating point currency anywhere in a generated product is a defect, and the repository layer rejects a float bound to a money column.",
+
+  "package": { "name": "@forge/kernel-money" },
+
+  "requires": [],
+
+  "owns": [
+    { "name": "Money", "kind": "value_type", "tenant_scoped": false, "listable": false,
+      "description": "An integer amount in minor units plus a currency. The shared money primitive; only the kernel may define it." },
+    { "name": "Currency", "kind": "table", "tenant_scoped": false,
+      "description": "ISO 4217 currencies with their minor-unit exponent." },
+    { "name": "ExchangeRate", "kind": "table", "tenant_scoped": false, "append_only": true,
+      "description": "Append-only, because a historical conversion must remain reproducible after a rate changes." }
+  ],
+
+  "exposes": [
+    { "kind": "interface", "name": "Money",
+      "signature": "Money.of(minor: number, currency: string): Money; add, subtract, multiply, compare, format" },
+    { "kind": "interface", "name": "allocate",
+      "signature": "allocate(total: Money, ratios: number[]): Money[]",
+      "description": "Splits an amount without losing or inventing minor units. Remainder distribution is deterministic, which is what makes split payouts and line-item tax reconcile to the cent." }
+  ],
+
+  "tests": {
+    "smoke": [
+      { "name": "allocation preserves the total", "asserts": "for any total and any ratio set, the allocated parts sum exactly to the total" },
+      { "name": "cross-currency arithmetic is rejected", "asserts": "adding two Money values of different currencies throws rather than coercing" }
+    ]
+  },
+
+  "migrations": [
+    { "id": "20260601_create_kernel_money", "introduced_in": "1.0.0",
+      "up": "migrations/20260601_create_kernel_money.up.sql",
+      "down": "migrations/20260601_create_kernel_money.down.sql" }
+  ],
+
+  "templates": [
+    { "id": "currencies.ts", "version": "1.0.0", "output": "src/generated/kernel.money/currencies.ts", "zone": "managed",
+      "description": "The currency set enabled for this product, from the manifest." }
+  ]
+}

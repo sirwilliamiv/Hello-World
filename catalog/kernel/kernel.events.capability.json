@@ -1,0 +1,100 @@
+{
+  "$schema": "../../schemas/capability.schema.json",
+  "spec_version": 1,
+  "id": "kernel.events",
+  "version": "1.0.0",
+  "kernel_range": "^1.0.0",
+  "name": "The internal event bus",
+  "tier": "kernel",
+  "price": {
+    "model": "included"
+  },
+  "integration_weight": 0,
+  "summary": "The only sanctioned path for cross-capability communication. Direct calls between capabilities are prohibited except through explicitly exposed interfaces. Schemas are registered and versioned; a capability publishing an event whose schema is not registered fails CI.",
+  "package": {
+    "name": "@forge/kernel-events"
+  },
+  "requires": [],
+  "owns": [
+    {
+      "name": "Event",
+      "kind": "table",
+      "description": "Persisted event log. Append-only, because replay and audit both depend on it.",
+      "tenant_scoped": false,
+      "append_only": true
+    },
+    {
+      "name": "Subscription",
+      "kind": "table",
+      "description": "Resolved subscriptions, derived from the consumes declarations in the resolved graph.",
+      "tenant_scoped": false,
+      "listable": false
+    },
+    {
+      "name": "DeadLetter",
+      "kind": "table",
+      "description": "Handler failures retained for inspection and replay.",
+      "tenant_scoped": false
+    }
+  ],
+  "exposes": [
+    {
+      "kind": "interface",
+      "name": "publish",
+      "signature": "publish<E extends EventName>(name: E, payload: PayloadOf<E>): Promise<void>",
+      "description": "Rejects at compile time an event not declared in the publisher's spec, and at runtime an unregistered schema."
+    },
+    {
+      "kind": "interface",
+      "name": "subscribe",
+      "signature": "subscribe(pattern: EventPattern, handler: (e: Event) => Promise<void>): void"
+    },
+    {
+      "kind": "registry",
+      "name": "eventSchemas",
+      "description": "The event schema registry. Populated from the resolved graph's publishes declarations; this is what makes the integrate.webhooks subscribable event catalog and the automation.rules trigger list derivable rather than hardcoded."
+    }
+  ],
+  "tests": {
+    "smoke": [
+      {
+        "name": "publish and receive",
+        "asserts": "a published event reaches every matching subscriber exactly once"
+      },
+      {
+        "name": "unregistered schema is rejected",
+        "asserts": "publishing an event with no registered schema throws rather than being silently dropped"
+      },
+      {
+        "name": "handler failure dead-letters",
+        "asserts": "a failing handler dead-letters the event without blocking other subscribers"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "id": "20260601_create_kernel_events",
+      "introduced_in": "1.0.0",
+      "up": "migrations/20260601_create_kernel_events.up.sql",
+      "down": "migrations/20260601_create_kernel_events.down.sql"
+    }
+  ],
+  "templates": [
+    {
+      "id": "subscriptions.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.events/subscriptions.ts",
+      "zone": "managed",
+      "description": "Wires every consumes declaration in the resolved graph to its handler.",
+      "scope": "graph"
+    },
+    {
+      "id": "event-types.ts",
+      "version": "1.0.0",
+      "output": "src/generated/kernel.events/event-types.ts",
+      "zone": "managed",
+      "description": "TypeScript types compiled from the resolved publishes schemas, so a contract violation is a build error.",
+      "scope": "graph"
+    }
+  ]
+}

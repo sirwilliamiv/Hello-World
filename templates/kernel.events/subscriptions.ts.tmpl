@@ -1,0 +1,11 @@
+import { subscribe } from '@forge/kernel-events'
+{{- range .Graph.Subscriptions }}
+import { {{ .Handler }} } from '{{ .Package }}'
+{{- end }}
+
+// Every `consumes` declaration in the resolved graph, wired to its handler.
+// A subscription that is not declared in a capability specification cannot
+// appear here, which is how "nothing undeclared" is enforced at runtime.
+{{- range .Graph.Subscriptions }}
+subscribe({{ .Event | quote }}, {{ .Handler }})  // {{ .Consumer }}, contract v{{ range $i, $v := .Versions }}{{ if $i }}/v{{ end }}{{ $v }}{{ end }}
+{{- end }}

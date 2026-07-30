@@ -1,0 +1,12 @@
+import { configureQueue } from '@forge/ops-queue'
+import { env } from '@/generated/env'
+import * as slots from '@/slots/ops.queue'
+
+configureQueue({
+  driver: {{ cfgStr .Config "driver" "postgres" | quote }},
+  url: env.QUEUE_URL,
+  maxAttempts: {{ cfg .Config "max_attempts" 5 }},
+  concurrency: {{ cfg .Config "concurrency" 10 }},
+  depthAlertThreshold: {{ cfg .Config "depth_alert_threshold" 1000 }},
+  slots,
+})

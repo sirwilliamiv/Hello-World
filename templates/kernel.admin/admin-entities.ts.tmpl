@@ -1,0 +1,7 @@
+import { registerAdminEntity } from '@forge/kernel-admin'
+
+// Auto-generated CRUD for every entity in the graph, including the ones the
+// client declared in the manifest.
+{{- range .Graph.Entities }}
+registerAdminEntity({ name: {{ .Name | quote }}, owner: {{ .Capability | quote }} })
+{{- end }}

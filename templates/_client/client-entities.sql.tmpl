@@ -1,0 +1,21 @@
+-- Tables for entities declared in the manifest.
+-- Generated from `entities:` — edit the manifest, not this file.
+{{- range .Graph.Entities }}{{ if .Client }}{{ $t := .Name | snake }}
+
+create table if not exists {{ $t }} (
+  id              uuid primary key default gen_random_uuid(),
+{{- if .TenantScoped }}
+  organization_id uuid,
+{{- end }}
+{{- range .Fields }}
+  {{ printf "%-15s" (.Name | snake) }} {{ sqlType .Type }}{{ if .Required }} not null{{ end }}{{ if .Unique }} unique{{ end }},
+{{- end }}
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+  deleted_at      timestamptz,
+  revision        bigint not null default 1
+);
+{{- range .Fields }}{{ if .Indexed }}
+create index if not exists {{ $t }}_{{ .Name | snake }}_idx on {{ $t }} ({{ .Name | snake }});
+{{- end }}{{ end }}
+{{- end }}{{ end }}

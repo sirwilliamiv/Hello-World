@@ -1,0 +1,9 @@
+import { configureMail } from '@forge/kernel-mail'
+import { env } from '@/generated/env'
+
+// Values are read from the environment at runtime. Forge generates the schema
+// for these names; it never generates or stores the values.
+configureMail({
+  dsn: env.MAIL_DSN,
+  from: env.MAIL_FROM_ADDRESS,
+})

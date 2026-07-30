@@ -1,0 +1,12 @@
+import { configureDocuments } from '@forge/docs-generation'
+import * as slots from '@/slots/docs.generation'
+
+configureDocuments({
+  defaultFormat: {{ cfgStr .Config "default_format" "pdf" | quote }},
+  pageSize: {{ cfgStr .Config "page_size" "letter" | quote }},
+  pdfEngine: {{ cfgStr .Config "pdf_engine" "chromium" | quote }},
+  // Templates consume kernel.ui tokens, so documents match the product's
+  // branding without separate design work.
+  tokensHref: '/generated/kernel.ui/tokens.css',
+  slots,
+})

@@ -1,0 +1,15 @@
+import { AppShell } from '@forge/kernel-ui'
+import '@/generated/kernel.ui/tokens.css'
+import '@/generated/kernel.ui/navigation'
+
+export const metadata = { title: {{ .Product.Name | quote }} }
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <AppShell product={{ "{" }}{{ .Product.Name | quote }}{{ "}" }}>{children}</AppShell>
+      </body>
+    </html>
+  )
+}

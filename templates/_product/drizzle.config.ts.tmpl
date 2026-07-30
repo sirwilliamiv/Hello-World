@@ -1,0 +1,11 @@
+import { defineConfig } from 'drizzle-kit'
+
+// Migrations are hand-written SQL, reviewed, and shipped by the capability that
+// needs them. drizzle-kit is used to inspect and run, never to author: a
+// generated diff cannot express a data backfill and cannot be rolled back.
+export default defineConfig({
+  dialect: 'postgresql',
+  schema: './src/generated/kernel.data/entities.ts',
+  out: './migrations',
+  dbCredentials: { url: process.env.DATABASE_URL! },
+})
