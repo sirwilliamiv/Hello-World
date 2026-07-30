@@ -2,7 +2,7 @@
   "state_version": 1,
   "workspace": "reference/development",
   "forge_version": "0.1.0",
-  "serial": 9,
+  "serial": 10,
   "manifest_hash": "sha256:339ec058da5fd2fc58ee7c0d784a33b959c0e13d0a148d5a2b68aacca46718ca",
   "catalog_snapshot": "2026-07-15",
   "lock": {
@@ -216,8 +216,8 @@
       "capability": "\u003cgraph\u003e",
       "template": "env.ts",
       "template_version": "1.0.0",
-      "generated_hash": "sha256:7010237fc7349949cdace7284a6b7988f8f66e314725aac54c198753954f7803",
-      "rendered_inputs_hash": "sha256:d8d27231ef731df2f8ac69f99e2bcd62c4aa1701580ce7a5b96a3a0c6343f48f"
+      "generated_hash": "sha256:8dcc210533f2153f983ea85068f64a47c19a55a0cbd55683ab46efc3dc5c6ae2",
+      "rendered_inputs_hash": "sha256:3a401819e981edfcf1e606a342e79e1933e27d5f59db804fdeb69c399b9e4a54"
     },
     {
       "path": "src/generated/kernel.access/permissions.ts",

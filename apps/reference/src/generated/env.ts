@@ -13,16 +13,16 @@ import { z } from 'zod'
 // rather than at the first request that needs a missing key.
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
-  ERROR_TRACKING_DSN: z.string().min(1),
   MAIL_DSN: z.string().min(1),
-  MAIL_FROM_ADDRESS: z.string().min(1),
-  METRICS_ENDPOINT: z.string().min(1),
   QUEUE_URL: z.string().min(1),
-  SCANNER_ENDPOINT: z.string().min(1),
   STORAGE_BUCKET: z.string().min(1),
   STORAGE_CREDENTIALS: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  ERROR_TRACKING_DSN: z.string().optional(),  // declared optional by its capability
+  MAIL_FROM_ADDRESS: z.string().optional(),  // declared optional by its capability
+  METRICS_ENDPOINT: z.string().optional(),  // declared optional by its capability
+  SCANNER_ENDPOINT: z.string().optional(),  // declared optional by its capability
 })
 
 export type Env = z.infer<typeof schema>

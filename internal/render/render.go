@@ -49,6 +49,7 @@ type GraphFacts struct {
 	NavItems        []NavFact
 	Migrations      []MigrationFact
 	EnvVars         []string
+	OptionalEnvVars []string
 	SupersededBy    map[string]string
 }
 
@@ -204,6 +205,14 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 		}
 		for _, ext := range n.Cap.External {
 			for _, cred := range ext.Credentials {
+				// An optional credential must not be required at boot. The specs
+				// mark virus scanning, error tracking and metrics endpoints
+				// optional precisely so a product can run without them; requiring
+				// all of them made the env schema demand values nobody has.
+				if cred.Optional || ext.Optional {
+					f.OptionalEnvVars = append(f.OptionalEnvVars, cred.Name)
+					continue
+				}
 				f.EnvVars = append(f.EnvVars, cred.Name)
 			}
 		}
@@ -231,6 +240,8 @@ func BuildGraphFacts(m *manifest.Manifest, g *resolve.Graph) GraphFacts {
 	f.Permissions = dedupePermissions(f.Permissions)
 	sort.Strings(f.EnvVars)
 	f.EnvVars = dedupe(f.EnvVars)
+	sort.Strings(f.OptionalEnvVars)
+	f.OptionalEnvVars = dedupe(f.OptionalEnvVars)
 	sort.Slice(f.Entities, func(i, j int) bool { return f.Entities[i].Name < f.Entities[j].Name })
 	sort.Slice(f.Subscriptions, func(i, j int) bool {
 		if f.Subscriptions[i].Event != f.Subscriptions[j].Event {
