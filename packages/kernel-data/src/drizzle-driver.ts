@@ -45,7 +45,7 @@ export class DrizzleDriver implements DataDriver {
   }
 
   async insert(table: string, values: RowValues): Promise<RowValues> {
-    const entries = Object.entries(values)
+    const entries = Object.entries(values).map(([c, v]) => [c, bindable(v)] as const)
     const columns = sql.join(
       entries.map(([column]) => identifier(toColumn(column))),
       sql`, `,
@@ -64,7 +64,7 @@ export class DrizzleDriver implements DataDriver {
 
   async update(table: string, where: Predicate, values: RowValues): Promise<RowValues[]> {
     const assignments = sql.join(
-      Object.entries(values).map(([column, value]) => sql`${identifier(toColumn(column))} = ${value}`),
+      Object.entries(values).map(([column, value]) => sql`${identifier(toColumn(column))} = ${bindable(value)}`),
       sql`, `,
     )
     return this.rows(
@@ -96,6 +96,23 @@ export class DrizzleDriver implements DataDriver {
   }
 }
 
+/**
+ * Converts a value into something the driver can bind as a parameter.
+ *
+ * This driver is schema-less on purpose: it takes a table name and a plain
+ * object, so drizzle has no column type to tell postgres.js how to serialise a
+ * value. A Date therefore arrives at the wire protocol as an object it cannot
+ * encode, and the query fails with "Received an instance of Date" — which is
+ * exactly what stopped every migration from recording itself in the ledger.
+ *
+ * ISO 8601 in UTC is unambiguous to Postgres for timestamptz, and is what the
+ * value would have become anyway had a schema been available.
+ */
+function bindable(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString()
+  return value
+}
+
 function identifier(name: string): SQL {
   const lowered = name.toLowerCase()
   if (!IDENTIFIER.test(lowered)) {
@@ -112,7 +129,7 @@ function whereClause(where: Predicate): SQL {
     conditions.push(
       value === null
         ? sql`${identifier(toColumn(column))} is null`
-        : sql`${identifier(toColumn(column))} = ${value}`,
+        : sql`${identifier(toColumn(column))} = ${bindable(value)}`,
     )
   }
   for (const column of where.isNull ?? []) {

@@ -7,8 +7,11 @@ detection, and per-file ejection all work on the codegen provider; all 16 capabi
 packages are implemented (526 tests, zero type errors, zero boundary violations); and
 `next build` succeeds against the reference product in `apps/reference`.
 
-Not yet done: the app has not been run against a live Postgres, so migrations and a real
-Stripe test-mode charge are unverified end to end. That is the remaining Phase 1 work.
+Verified against a live Postgres 16: all 14 migrations apply in dependency order, 34 tables
+are created, a second run is a no-op, and `pay.invoices`' gapless-numbering suite passes
+with 100 concurrent transactions allocating exactly 1..100 under real row locks.
+
+Not yet done: a real Stripe test-mode charge, which needs credentials.
 
 Phase 0's six open questions are decided in §14. The generation budget in §4, flagged
 there as the load-bearing unproven assumption, has now been measured — §9.1.
@@ -218,6 +221,14 @@ The cost is that the upgrader takes a runtime dependency on the capability it su
 regrettable: the superseded package still owns the interface definition, and something has
 to keep it installable. Note that `Graph.Packages` omits superseded capabilities, so the
 dependency must be declared in the upgrader's own `package.json` to be installed at all.
+
+**An upgrade migration must be safe on a fresh install, not only on an upgrade.**
+A superseded capability's migrations never run — `g.Active()` excludes it — so when a
+client selects Background Processing from day one, `kernel_work_jobs` does not exist and
+never will. `ops.queue`'s upgrade migration read that table unconditionally and failed
+every fresh build. Carrying in-flight work across is meaningful only when there was
+something to carry it from, so the migration now guards on the table's existence and
+returns quietly otherwise. This applies to every upgrade in the catalog.
 
 **Every upgrade in the catalog needs this treatment**, not just `ops.queue`:
 `access.rebac` over `kernel.access`, `comms.email` over `kernel.mail`, and `audit.history`
